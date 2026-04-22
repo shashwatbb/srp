@@ -15,7 +15,10 @@ import {
 } from '../../data/srpAreasMock'
 import { getSrpListingsForCity, type SrpListing } from '../../data/srpMock'
 import { SrpAreaPickerSheet } from './SrpAreaPickerSheet'
-import { SrpFiltersSheet } from './SrpFiltersSheet'
+import {
+  SRP_FILTER_SHEET_TRANSITION_MS,
+  SrpFiltersSheet,
+} from './SrpFiltersSheet'
 import { HotspotSparkIcon, NewProjectsCuteIcon } from './SrpFilterCuteIcons'
 import { SrpNewProjectsInfoBlock } from './SrpNewProjectsInfoBlock'
 import { SrpListingCard } from './SrpListingCard'
@@ -37,8 +40,8 @@ import {
 } from './srpFilterModel'
 import { gentleHaptic } from '../../lib/gentleHaptic'
 
-/** Background scale: longer + ease-out than sheet so the zoom reads clearly. */
-const SRP_CHROME_ZOOM_MS = 720
+/** Must match `SRP_FILTER_SHEET_TRANSITION_MS` so un-zoom and sheet unmount stay in phase. */
+const SRP_CHROME_ZOOM_MS = SRP_FILTER_SHEET_TRANSITION_MS
 const SRP_CHROME_SCALE = 0.91
 
 type SrpPageProps = {
@@ -528,9 +531,9 @@ export function SrpPage({
                   ? {}
                   : {
                       transitionProperty: 'transform',
-                      transitionDuration: `${SRP_CHROME_ZOOM_MS}ms`,
-                      transitionTimingFunction:
-                        'cubic-bezier(0.22, 1, 0.32, 1)',
+                    transitionDuration: `${SRP_CHROME_ZOOM_MS}ms`,
+                    transitionTimingFunction:
+                      'cubic-bezier(0.25, 0.1, 0.25, 1)',
                     }),
               }
             : undefined

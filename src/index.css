@@ -127,6 +127,62 @@
   background: #e8e8e8;
 }
 
+/* Budget filter only: vertical range (rotate horizontal control for broad support) */
+.srp-budget-v-range-wrap {
+  display: flex;
+  height: 220px;
+  width: 48px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.srp-budget-v-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 200px;
+  height: 10px;
+  transform: rotate(-90deg);
+  transform-origin: center center;
+  border-radius: 9999px;
+  background: transparent;
+  accent-color: #5b22de;
+}
+
+.srp-budget-v-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: #eceef2;
+}
+
+.srp-budget-v-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  background: #5b22de;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.srp-budget-v-range::-moz-range-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: #eceef2;
+}
+
+.srp-budget-v-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #5b22de;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;

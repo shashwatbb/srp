@@ -45,8 +45,8 @@ type SrpFiltersSheetProps = {
   onCloseMotionStart?: () => void
 }
 
-/** Sheet + SRP chrome: one duration so zoom isn’t cut off when sheet unmounts */
-export const SRP_FILTER_SHEET_TRANSITION_MS = 520
+/** Keep in sync with SRP chrome zoom in `SrpPage` (same value = no snap at end). */
+export const SRP_FILTER_SHEET_TRANSITION_MS = 360
 const SHEET_TRANSITION_MS = SRP_FILTER_SHEET_TRANSITION_MS
 
 const FS = {
@@ -128,7 +128,53 @@ function toggleInArray<T extends string>(arr: T[], id: T): T[] {
   return [...arr, id]
 }
 
-function DualCrSliders({
+const BUDGET_CR_LO = 0
+const BUDGET_CR_HI = 30
+const BUDGET_CR_GAP = 0.05
+const BUDGET_CR_STEP = 0.05
+
+const BUDGET_QUICK_CHIPS: readonly {
+  id: string
+  label: string
+  min: number
+  max: number
+}[] = [
+  { id: 'u75', label: 'Under ₹75L', min: 0, max: 0.75 },
+  { id: '75-15', label: '₹75L – ₹1.5Cr', min: 0.75, max: 1.5 },
+  { id: '15-25', label: '₹1.5Cr – ₹2.5Cr', min: 1.5, max: 2.5 },
+  { id: '25-4', label: '₹2.5Cr – ₹4Cr', min: 2.5, max: 4 },
+  { id: '4-5', label: '₹4Cr – ₹5Cr', min: 4, max: 5 },
+  { id: '5p', label: '₹5Cr+', min: 5, max: 30 },
+]
+
+function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
+  if (cr <= 0) return '₹0'
+  if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹30Cr+'
+  if (cr < 1) {
+    const lakhs = Math.round(cr * 100)
+    return `₹${lakhs}L`
+  }
+  const rounded = Math.round(cr * 10) / 10
+  const s =
+    rounded % 1 === 0
+      ? String(rounded)
+      : rounded.toFixed(1).replace(/\.0$/, '')
+  return `₹${s}Cr`
+}
+
+function budgetChipMatches(
+  minCr: number,
+  maxCr: number,
+  chip: (typeof BUDGET_QUICK_CHIPS)[number],
+): boolean {
+  const eps = 0.02
+  return (
+    Math.abs(minCr - chip.min) < eps && Math.abs(maxCr - chip.max) < eps
+  )
+}
+
+/** Budget filter only — vertical sliders, live prices, inputs, quick chips */
+function BudgetFilterPanel({
   minCr,
   maxCr,
   onChange,
@@ -137,82 +183,124 @@ function DualCrSliders({
   maxCr: number
   onChange: (min: number, max: number) => void
 }) {
-  const lo = 0
-  const hi = 30
-  const gap = 0.25
-
   const setMin = (v: number) => {
-    const next = Math.min(v, maxCr - gap)
-    onChange(Math.max(lo, next), maxCr)
+    const next = Math.min(v, maxCr - BUDGET_CR_GAP)
+    onChange(Math.max(BUDGET_CR_LO, next), maxCr)
   }
   const setMax = (v: number) => {
-    const next = Math.max(v, minCr + gap)
-    onChange(minCr, Math.min(hi, next))
+    const next = Math.max(v, minCr + BUDGET_CR_GAP)
+    onChange(minCr, Math.min(BUDGET_CR_HI, next))
   }
 
+  const inputClass =
+    'w-full rounded-xl border border-[#E8E8E8] bg-white px-3 py-2.5 text-center text-[15px] font-medium tabular-nums text-[#1a1a1a] outline-none transition-[border-color] focus:border-[#C4B5E8]'
+
   return (
-    <div className="space-y-8">
-      <div>
-        <div className="mb-2 flex justify-between text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
-          <span>Min</span>
-          <span className="tabular-nums text-[#111827]">₹ {minCr.toFixed(2)} Cr</span>
+    <div className="flex flex-col gap-7 bg-white">
+      <div className="flex items-start justify-center gap-12 px-1">
+        <div className="min-w-0 flex-1 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
+            Min
+          </p>
+          <p className="mt-1.5 text-[1.35rem] font-semibold leading-tight tracking-tight text-[#1a1a1a]">
+            {formatBudgetPriceCr(minCr, 'min')}
+          </p>
         </div>
-        <input
-          type="range"
-          min={lo}
-          max={hi}
-          step={0.05}
-          value={minCr}
-          onChange={(e) => setMin(parseFloat(e.target.value))}
-          className="srp-fs-range h-3 w-full"
-          aria-label="Minimum budget in crores"
-        />
-      </div>
-      <div>
-        <div className="mb-2 flex justify-between text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
-          <span>Max</span>
-          <span className="tabular-nums text-[#111827]">₹ {maxCr.toFixed(2)} Cr</span>
+        <div className="min-w-0 flex-1 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
+            Max
+          </p>
+          <p className="mt-1.5 text-[1.35rem] font-semibold leading-tight tracking-tight text-[#1a1a1a]">
+            {formatBudgetPriceCr(maxCr, 'max')}
+          </p>
         </div>
-        <input
-          type="range"
-          min={lo}
-          max={hi}
-          step={0.05}
-          value={maxCr}
-          onChange={(e) => setMax(parseFloat(e.target.value))}
-          className="srp-fs-range h-3 w-full"
-          aria-label="Maximum budget in crores"
-        />
       </div>
+
+      <div className="flex items-center justify-center gap-10">
+        <div className="srp-budget-v-range-wrap">
+          <input
+            type="range"
+            min={BUDGET_CR_LO}
+            max={BUDGET_CR_HI}
+            step={BUDGET_CR_STEP}
+            value={minCr}
+            onChange={(e) => setMin(parseFloat(e.target.value))}
+            className="srp-budget-v-range"
+            aria-label="Minimum budget"
+          />
+        </div>
+        <div className="srp-budget-v-range-wrap">
+          <input
+            type="range"
+            min={BUDGET_CR_LO}
+            max={BUDGET_CR_HI}
+            step={BUDGET_CR_STEP}
+            value={maxCr}
+            onChange={(e) => setMax(parseFloat(e.target.value))}
+            className="srp-budget-v-range"
+            aria-label="Maximum budget"
+          />
+        </div>
+      </div>
+
       <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
+        <label className="min-w-0 flex-1">
+          <span className="mb-1.5 block text-center text-[10px] font-medium uppercase tracking-[0.14em] text-[#9CA3AF]">
             Min (₹ Cr)
           </span>
           <input
             type="number"
-            min={lo}
-            max={hi}
-            step={0.05}
-            value={minCr}
-            onChange={(e) => setMin(parseFloat(e.target.value) || lo)}
-            className="rounded-lg border border-[#E0E0E0] bg-white px-3 py-2.5 text-[15px] font-medium text-[#212121] outline-none focus:border-[#5B22DE]"
+            min={BUDGET_CR_LO}
+            max={BUDGET_CR_HI}
+            step={BUDGET_CR_STEP}
+            value={Number.isFinite(minCr) ? minCr : BUDGET_CR_LO}
+            onChange={(e) => {
+              const raw = parseFloat(e.target.value)
+              const v = Number.isFinite(raw) ? raw : BUDGET_CR_LO
+              setMin(v)
+            }}
+            className={inputClass}
           />
         </label>
-        <label className="flex flex-1 flex-col gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
+        <label className="min-w-0 flex-1">
+          <span className="mb-1.5 block text-center text-[10px] font-medium uppercase tracking-[0.14em] text-[#9CA3AF]">
             Max (₹ Cr)
           </span>
           <input
             type="number"
-            min={lo}
-            max={hi}
-            step={0.05}
-            value={maxCr}
-            onChange={(e) => setMax(parseFloat(e.target.value) || hi)}
-            className="rounded-lg border border-[#E0E0E0] bg-white px-3 py-2.5 text-[15px] font-medium text-[#212121] outline-none focus:border-[#5B22DE]"
+            min={BUDGET_CR_LO}
+            max={BUDGET_CR_HI}
+            step={BUDGET_CR_STEP}
+            value={Number.isFinite(maxCr) ? maxCr : BUDGET_CR_HI}
+            onChange={(e) => {
+              const raw = parseFloat(e.target.value)
+              const v = Number.isFinite(raw) ? raw : BUDGET_CR_HI
+              setMax(v)
+            }}
+            className={inputClass}
           />
         </label>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-2">
+        {BUDGET_QUICK_CHIPS.map((chip) => {
+          const selected = budgetChipMatches(minCr, maxCr, chip)
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => onChange(chip.min, chip.max)}
+              className={[
+                'rounded-full border px-3 py-2 text-left text-[11px] font-medium leading-snug transition-colors active:opacity-85',
+                selected
+                  ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
+                  : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
+              ].join(' ')}
+            >
+              {chip.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -415,7 +503,7 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="budget" />
         <div className="mt-2">
-          <DualCrSliders
+          <BudgetFilterPanel
             minCr={draft.budgetMinCr}
             maxCr={draft.budgetMaxCr}
             onChange={(budgetMinCr, budgetMaxCr) =>
@@ -785,6 +873,8 @@ export function SrpFiltersSheet({
   const [present, setPresent] = useState(open)
   /** Sheet at rest position (open) vs off-screen (closed) */
   const [entered, setEntered] = useState(false)
+  /** When true, overlay is pass-through + body scroll restored while sheet animates out */
+  const [closing, setClosing] = useState(false)
   /**
    * Transitions must not run on the first paint after mount — browsers skip
    * from “no prior style” to animated. Arm transitions only after layout.
@@ -792,9 +882,14 @@ export function SrpFiltersSheet({
   const [motionReady, setMotionReady] = useState(false)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const openRafRef = useRef<{ a?: number; b?: number; c?: number }>({})
+  const bodyBeforeSheetRef = useRef<{ overflow: string; paddingRight: string }>({
+    overflow: '',
+    paddingRight: '',
+  })
 
   const closeAnimated = useCallback(() => {
     onCloseMotionStart?.()
+    setClosing(true)
     setEntered(false)
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
     closeTimerRef.current = setTimeout(() => {
@@ -810,6 +905,7 @@ export function SrpFiltersSheet({
         closeTimerRef.current = null
       }
       setPresent(true)
+      setClosing(false)
       setEntered(false)
       setMotionReady(false)
 
@@ -856,19 +952,32 @@ export function SrpFiltersSheet({
       if (e.key === 'Escape') closeAnimated()
     }
     window.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    const prevPadding = document.body.style.paddingRight
+    return () => {
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [present, closeAnimated])
+
+  useEffect(() => {
+    if (!present) return
+    if (closing) {
+      document.body.style.overflow = bodyBeforeSheetRef.current.overflow
+      document.body.style.paddingRight = bodyBeforeSheetRef.current.paddingRight
+      return
+    }
+    bodyBeforeSheetRef.current = {
+      overflow: document.body.style.overflow,
+      paddingRight: document.body.style.paddingRight,
+    }
     const gutter = window.innerWidth - document.documentElement.clientWidth
     document.body.style.overflow = 'hidden'
     if (gutter > 0) {
       document.body.style.paddingRight = `${gutter}px`
     }
     return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
-      document.body.style.paddingRight = prevPadding
+      document.body.style.overflow = bodyBeforeSheetRef.current.overflow
+      document.body.style.paddingRight = bodyBeforeSheetRef.current.paddingRight
     }
-  }, [present, closeAnimated])
+  }, [present, closing])
 
   useEffect(() => {
     return () => {
@@ -896,7 +1005,12 @@ export function SrpFiltersSheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex flex-col bg-black/40 motion-reduce:bg-black/40"
+      className={[
+        'fixed inset-0 z-[110] flex flex-col transition-[background-color,opacity] duration-200 ease-out',
+        closing
+          ? 'pointer-events-none bg-black/0 motion-reduce:bg-black/0'
+          : 'bg-black/40 motion-reduce:bg-black/40',
+      ].join(' ')}
       role="presentation"
     >
       {/* Top ~20%+ : tap dimmed area to dismiss; flex-1 fills space above sheet */}
@@ -905,6 +1019,7 @@ export function SrpFiltersSheet({
         className="min-h-[20dvh] w-full flex-1 shrink-0 cursor-pointer bg-transparent"
         aria-label="Close filters"
         onClick={closeAnimated}
+        tabIndex={closing ? -1 : 0}
       />
 
       <div
