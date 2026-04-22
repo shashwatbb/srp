@@ -602,7 +602,7 @@ function BhkFilterList({
   }, [])
 
   return (
-    <div className="flex w-full flex-col divide-y divide-[#ECECEC] bg-white">
+    <div className="flex w-full flex-col divide-y divide-[#F3F3F3] bg-white">
       {FILTER_BHK_OPTIONS.map((o) => {
         const selected = selectedIds.includes(o.id)
         const pulsing = pulseId === o.id
@@ -613,7 +613,7 @@ function BhkFilterList({
             role="checkbox"
             aria-checked={selected}
             aria-label={o.label}
-            className="flex w-full items-center gap-3 py-3.5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-2 last:pb-2"
+            className="flex w-full items-center gap-4 py-5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
             onClick={() => {
               onToggle(o.id)
               triggerPulse(o.id)
@@ -645,7 +645,7 @@ function BhkFilterList({
             </span>
             <span
               className={[
-                'min-w-0 flex-1 py-0.5 text-left text-[15px] leading-snug transition-colors duration-300 ease-out',
+                'min-w-0 flex-1 py-0.5 text-left text-[15px] leading-relaxed transition-colors duration-300 ease-out',
                 selected
                   ? 'font-medium text-[#212121]'
                   : 'font-normal text-[#454545]',
