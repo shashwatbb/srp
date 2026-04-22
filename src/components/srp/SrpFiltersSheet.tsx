@@ -628,7 +628,7 @@ function CheckboxFilterColumn({
             role="checkbox"
             aria-checked={selected}
             aria-label={o.hint ? `${o.label}. ${o.hint}` : o.label}
-            className="flex w-full items-center gap-4 py-5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
+            className="flex w-full items-start gap-4 py-5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
             onClick={() => {
               onToggle(o.id)
               triggerPulse(o.id)
