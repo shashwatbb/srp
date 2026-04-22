@@ -146,19 +146,21 @@ const BUDGET_QUICK_CHIPS: readonly {
   { id: '5p', label: '₹5Cr+', min: 5, max: 30 },
 ]
 
+/** Whole lakhs / crores only — no decimal points (e.g. ₹50L, ₹1Cr, ₹26Cr 25L) */
 function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
   if (cr <= 0) return 'Any'
   if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹30Cr+'
   if (cr < 1) {
     const lakhs = Math.round(cr * 100)
-    return `₹${lakhs}L`
+    return lakhs <= 0 ? 'Any' : `₹${lakhs}L`
   }
-  const rounded = Math.round(cr * 10) / 10
-  const s =
-    rounded % 1 === 0
-      ? String(rounded)
-      : rounded.toFixed(1).replace(/\.0$/, '')
-  return `₹${s}Cr`
+  const whole = Math.floor(cr + 1e-9)
+  const frac = cr - whole
+  const lakhsFromFrac = Math.round(frac * 100 + 1e-9)
+  if (lakhsFromFrac <= 0 || lakhsFromFrac >= 100) {
+    return `₹${Math.round(cr)}Cr`
+  }
+  return `₹${whole}Cr ${lakhsFromFrac}L`
 }
 
 function formatBudgetRangeLine(minCr: number, maxCr: number): string {
@@ -192,7 +194,7 @@ const BUDGET_THUMB_LABEL_COL_W = 80
 const BUDGET_BAR_COL_W = 48
 const BUDGET_STEPPER_COL_W = 22
 /** Horizontal gap between bar column and steppers */
-const BUDGET_SLIDER_ROW_GAP = 2
+const BUDGET_SLIDER_ROW_GAP = 0
 const BUDGET_SLIDER_ROW_W =
   BUDGET_THUMB_LABEL_COL_W +
   BUDGET_BAR_COL_W +
@@ -238,12 +240,6 @@ function snapMaxFromTrack(v: number, minCr: number): number {
   return above.length ? above[0]! : BUDGET_CR_HI
 }
 
-function budgetDragHaptic() {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate(10)
-  }
-}
-
 /** Single thin vertical track, two thumbs, purple range — budget only */
 function BudgetVerticalRange({
   minCr,
@@ -283,13 +279,11 @@ function BudgetVerticalRange({
       if (role === 'min') {
         const next = snapMinFromTrack(v, maxCr)
         if (next !== minCr) {
-          budgetDragHaptic()
           onChange(Math.max(BUDGET_CR_LO, next), maxCr)
         }
       } else {
         const next = snapMaxFromTrack(v, minCr)
         if (next !== maxCr) {
-          budgetDragHaptic()
           onChange(minCr, Math.min(BUDGET_CR_HI, next))
         }
       }
@@ -322,12 +316,8 @@ function BudgetVerticalRange({
     const dMin = Math.abs(v - minCr)
     const dMax = Math.abs(v - maxCr)
     if (dMin <= dMax) {
-      const next = snapMinFromTrack(v, maxCr)
-      if (next !== minCr) budgetDragHaptic()
       applyMin(v)
     } else {
-      const next = snapMaxFromTrack(v, minCr)
-      if (next !== maxCr) budgetDragHaptic()
       applyMax(v)
     }
   }
@@ -498,7 +488,7 @@ function BudgetFilterPanel({
 
       <BudgetVerticalRange minCr={minCr} maxCr={maxCr} onChange={onChange} />
 
-      <div className="flex flex-wrap justify-center gap-2 pt-1">
+      <div className="flex flex-wrap justify-start gap-2 pt-1">
         {BUDGET_QUICK_CHIPS.map((chip) => {
           const selected = budgetChipMatches(minCr, maxCr, chip)
           return (
@@ -507,7 +497,7 @@ function BudgetFilterPanel({
               type="button"
               onClick={() => onChange(chip.min, chip.max)}
               className={[
-                'rounded-full border px-3 py-2 text-left text-[11px] font-medium leading-snug transition-colors active:opacity-85',
+                'rounded-lg border px-4 py-2.5 text-left text-[13px] font-medium leading-snug transition-colors active:opacity-85',
                 selected
                   ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
                   : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
