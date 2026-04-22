@@ -488,7 +488,7 @@ function BudgetFilterPanel({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 bg-white">
-      <div className="w-full text-center">
+      <div className="w-full self-stretch text-left">
         <p className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
           Price range
         </p>
