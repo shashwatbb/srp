@@ -146,18 +146,24 @@ const BUDGET_QUICK_CHIPS: readonly {
   { id: '5p', label: '₹5Cr+', min: 5, max: 30 },
 ]
 
+/** Crore part rounded to cents of a crore, max two fractional digits, trailing zeros trimmed */
+function formatBudgetCrCoreTwoDp(cr: number): string {
+  const t = Math.round(cr * 100) / 100
+  return t.toFixed(2).replace(/\.?0+$/, '')
+}
+
 /**
- * One amount token only (min or max) — no decimals, no split "Cr + L" third chunk.
- * Whole crores as ₹NCr; otherwise total lakhs as ₹NL.
+ * Budget amounts: under ₹1Cr as whole lakhs (₹75L). From ₹1Cr up, at most two digits
+ * after the decimal in crore form (₹26.25Cr) — avoids long four-digit lakh strings.
  */
 function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
   if (cr <= 0) return 'Any'
   if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹30Cr+'
-  const lakhsTotal = Math.round(cr * 100)
-  if (lakhsTotal <= 0) return 'Any'
-  if (cr < 1) return `₹${lakhsTotal}L`
-  if (lakhsTotal % 100 === 0) return `₹${lakhsTotal / 100}Cr`
-  return `₹${lakhsTotal}L`
+  if (cr < 1) {
+    const lakhs = Math.round(cr * 100)
+    return lakhs <= 0 ? 'Any' : `₹${lakhs}L`
+  }
+  return `₹${formatBudgetCrCoreTwoDp(cr)}Cr`
 }
 
 function formatBudgetRangeLine(minCr: number, maxCr: number): string {
