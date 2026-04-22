@@ -186,7 +186,18 @@ function valueFromTrackClientY(clientY: number, rect: DOMRect): number {
 
 const BUDGET_TRACK_H = 248
 const BUDGET_THUMB_PX = 21
-const BUDGET_BAR_WIDTH_PX = 8
+const BUDGET_BAR_WIDTH_PX = 7
+/** Width for floating step-price pills (left of bar) */
+const BUDGET_THUMB_LABEL_COL_W = 80
+const BUDGET_BAR_COL_W = 48
+const BUDGET_STEPPER_COL_W = 22
+/** Horizontal gap between bar column and steppers */
+const BUDGET_SLIDER_ROW_GAP = 2
+const BUDGET_SLIDER_ROW_W =
+  BUDGET_THUMB_LABEL_COL_W +
+  BUDGET_BAR_COL_W +
+  BUDGET_SLIDER_ROW_GAP +
+  BUDGET_STEPPER_COL_W
 /** Silent tick marks to the right of the budget bar (no labels) */
 const BUDGET_BAR_STEPPER_COUNT = 9
 const BUDGET_BAR_GREY = '#E8EAEF'
@@ -335,21 +346,63 @@ function BudgetVerticalRange({
     transform: 'translateX(-50%)',
   })
 
+  /** Vertical center of thumb from track bottom (px) — for aligned price pills */
+  const thumbCenterBottomPx = (cr: number) =>
+    (cr / BUDGET_CR_HI) * BUDGET_TRACK_H
+
+  const stepPricePillClass =
+    'pointer-events-none absolute right-0 z-[1] truncate rounded-xl bg-[#5B22DE] px-2 py-1.5 text-center text-[10px] font-semibold leading-tight text-white'
+
   return (
-    <div className="flex flex-col items-center gap-2.5 px-2 py-4">
+    <div className="flex flex-col items-center gap-6 px-2 py-4">
       <p className="text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
         Maximum Price
       </p>
 
       <div
-        className="flex shrink-0 touch-none items-stretch justify-center gap-2"
-        style={{ height: BUDGET_TRACK_H }}
+        className="relative mx-auto shrink-0"
+        style={{ height: BUDGET_TRACK_H, width: BUDGET_SLIDER_ROW_W }}
       >
-        <div className="relative h-full w-12 shrink-0">
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 z-[1]"
+          style={{ width: BUDGET_THUMB_LABEL_COL_W }}
+          aria-hidden
+        >
+          <div
+            className={stepPricePillClass}
+            style={{
+              bottom: `${thumbCenterBottomPx(maxCr)}px`,
+              transform: 'translateY(50%)',
+              zIndex: 2,
+              maxWidth: BUDGET_THUMB_LABEL_COL_W,
+            }}
+          >
+            {formatBudgetPriceCr(maxCr, 'max')}
+          </div>
+          <div
+            className={stepPricePillClass}
+            style={{
+              bottom: `${thumbCenterBottomPx(minCr)}px`,
+              transform: 'translateY(50%)',
+              zIndex: 3,
+              maxWidth: BUDGET_THUMB_LABEL_COL_W,
+            }}
+          >
+            {formatBudgetPriceCr(minCr, 'min')}
+          </div>
+        </div>
+
+        <div
+          className="absolute top-0 h-full"
+          style={{
+            left: BUDGET_THUMB_LABEL_COL_W,
+            width: BUDGET_BAR_COL_W,
+          }}
+        >
           <div
             ref={trackRef}
             role="presentation"
-            className="absolute inset-y-0 left-1/2 z-0 w-10 -translate-x-1/2 cursor-pointer"
+            className="touch-none absolute inset-y-0 left-1/2 z-0 w-10 -translate-x-1/2 cursor-pointer"
             style={{ height: BUDGET_TRACK_H }}
             onPointerDown={trackBackgroundPointerDown}
           >
@@ -376,7 +429,7 @@ function BudgetVerticalRange({
             type="button"
             aria-label="Minimum price"
             aria-valuenow={minCr}
-            className="absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
+            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
             style={thumbStyle(minCr)}
             onPointerDown={(e) => {
               e.stopPropagation()
@@ -387,7 +440,7 @@ function BudgetVerticalRange({
             type="button"
             aria-label="Maximum price"
             aria-valuenow={maxCr}
-            className="absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
+            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
             style={thumbStyle(maxCr)}
             onPointerDown={(e) => {
               e.stopPropagation()
@@ -396,17 +449,9 @@ function BudgetVerticalRange({
           />
         </div>
 
-        <div className="flex w-[88px] shrink-0 flex-col justify-center px-0.5">
-          <div
-            className="rounded-2xl px-2.5 py-2 text-center text-[10px] font-semibold leading-snug text-white"
-            style={{ backgroundColor: BUDGET_BAR_GREY }}
-          >
-            {formatBudgetRangeLine(minCr, maxCr)}
-          </div>
-        </div>
-
         <div
-          className="pointer-events-none flex h-full w-5 shrink-0 flex-col justify-between py-1"
+          className="pointer-events-none absolute inset-y-0 right-0 flex flex-col justify-between py-1"
+          style={{ width: BUDGET_STEPPER_COL_W }}
           aria-hidden
         >
           {Array.from({ length: BUDGET_BAR_STEPPER_COUNT }, (_, i) => (
