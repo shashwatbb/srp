@@ -12,10 +12,26 @@ export const FILTER_BHK_OPTIONS = [
 ] as const
 
 export const FILTER_PROPERTY_TYPE_OPTIONS = [
-  { id: 'Apartment', label: 'Apartment' },
-  { id: 'Villa', label: 'Villa' },
-  { id: 'Duplex', label: 'Duplex' },
-  { id: 'Studio', label: 'Studio' },
+  {
+    id: 'Apartment',
+    label: 'Apartment',
+    hint: 'Flats in towers or blocks with shared building services.',
+  },
+  {
+    id: 'Villa',
+    label: 'Villa',
+    hint: 'Standalone home, often with private outdoor space.',
+  },
+  {
+    id: 'Duplex',
+    label: 'Duplex',
+    hint: 'Two-level unit linked by an internal staircase.',
+  },
+  {
+    id: 'Studio',
+    label: 'Studio',
+    hint: 'Single open room with a compact kitchen zone.',
+  },
 ] as const
 
 export const FILTER_CONSTRUCTION_OPTIONS = [

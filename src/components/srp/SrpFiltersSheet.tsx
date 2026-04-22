@@ -571,11 +571,26 @@ function BudgetFilterPanel({
   )
 }
 
-/** BHK: multi-select with real checkbox squares + vertical row separators */
-function BhkFilterList({
+type CheckboxFilterItem = { id: string; label: string; hint?: string }
+
+const BHK_CHECKBOX_ITEMS: CheckboxFilterItem[] = FILTER_BHK_OPTIONS.map(
+  (o) => ({ id: o.id, label: o.label }),
+)
+
+const PROPERTY_TYPE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_PROPERTY_TYPE_OPTIONS.map((o) => ({
+    id: o.id,
+    label: o.label,
+    hint: o.hint,
+  }))
+
+/** BHK / Type: checkbox column, dividers, optional hint line, tap pulse on title */
+function CheckboxFilterColumn({
+  items,
   selectedIds,
   onToggle,
 }: {
+  items: readonly CheckboxFilterItem[]
   selectedIds: string[]
   onToggle: (id: string) => void
 }) {
@@ -603,7 +618,7 @@ function BhkFilterList({
 
   return (
     <div className="flex w-full flex-col divide-y divide-[#F3F3F3] bg-white">
-      {FILTER_BHK_OPTIONS.map((o) => {
+      {items.map((o) => {
         const selected = selectedIds.includes(o.id)
         const pulsing = pulseId === o.id
         return (
@@ -612,7 +627,7 @@ function BhkFilterList({
             type="button"
             role="checkbox"
             aria-checked={selected}
-            aria-label={o.label}
+            aria-label={o.hint ? `${o.label}. ${o.hint}` : o.label}
             className="flex w-full items-center gap-4 py-5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
             onClick={() => {
               onToggle(o.id)
@@ -643,18 +658,25 @@ function BhkFilterList({
                 </svg>
               ) : null}
             </span>
-            <span
-              className={[
-                'min-w-0 flex-1 py-0.5 text-left text-[15px] leading-relaxed transition-colors duration-300 ease-out',
-                selected
-                  ? 'font-medium text-[#212121]'
-                  : 'font-normal text-[#454545]',
-                pulsing ? 'text-[#7C5BD6]' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {o.label}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+              <span
+                className={[
+                  'text-[15px] leading-relaxed transition-colors duration-300 ease-out',
+                  selected
+                    ? 'font-medium text-[#212121]'
+                    : 'font-normal text-[#454545]',
+                  pulsing ? 'text-[#7C5BD6]' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {o.label}
+              </span>
+              {o.hint ? (
+                <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
+                  {o.hint}
+                </span>
+              ) : null}
             </span>
           </button>
         )
@@ -891,7 +913,8 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="bhk" />
         <div className="mt-2">
-          <BhkFilterList
+          <CheckboxFilterColumn
+            items={BHK_CHECKBOX_ITEMS}
             selectedIds={draft.bhk}
             onToggle={(id) =>
               setDraft((d) => ({
@@ -909,20 +932,17 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="propertyType" />
-        <div className={listWrap}>
-          {FILTER_PROPERTY_TYPE_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.propertyTypes.includes(o.id)}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  propertyTypes: toggleInArray(d.propertyTypes, o.id),
-                }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={PROPERTY_TYPE_CHECKBOX_ITEMS}
+            selectedIds={draft.propertyTypes}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                propertyTypes: toggleInArray(d.propertyTypes, id),
+              }))
+            }
+          />
         </div>
       </div>
     )
