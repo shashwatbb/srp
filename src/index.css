@@ -138,9 +138,11 @@
   body {
     margin: 0;
     font-family: inherit;
+    overflow-x: clip;
   }
 
   #root {
     min-height: 100dvh;
+    min-height: 100svh;
   }
 }

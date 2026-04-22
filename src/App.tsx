@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
-  DesktopBlockedScreen,
   MobileAppShell,
+  MobileOnlyMessage,
 } from './components/MobileOnlyGate'
+import { useIsMobileLayout } from './hooks/useIsMobileLayout'
 import { BottomNav } from './components/home/BottomNav'
 import { CategoryNav } from './components/home/CategoryNav'
 import { HomeProjectsDiscoverPanel } from './components/home/HomeProjectsDiscoverPanel'
@@ -51,6 +52,8 @@ function initialFromSession() {
 const init = initialFromSession()
 
 export default function App() {
+  const isMobileLayout = useIsMobileLayout()
+
   const [screen, setScreen] = useState<Screen>(init.screen)
   const [flowCity, setFlowCity] = useState(init.flowCity)
   const [srpQuery, setSrpQuery] = useState(init.srpQuery)
@@ -85,6 +88,10 @@ export default function App() {
     setProjectsSearchSeed('')
     setProjectsSearchKey((k) => k + 1)
     setScreen('projects')
+  }
+
+  if (!isMobileLayout) {
+    return <MobileOnlyMessage />
   }
 
   return (
@@ -170,7 +177,6 @@ export default function App() {
         }}
       />
 
-      <DesktopBlockedScreen />
     </>
   )
 }

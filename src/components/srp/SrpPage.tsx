@@ -16,10 +16,6 @@ import {
 import { getSrpListingsForCity, type SrpListing } from '../../data/srpMock'
 import { SrpAreaPickerSheet } from './SrpAreaPickerSheet'
 import { SrpFiltersSheet } from './SrpFiltersSheet'
-
-/** Background scale: longer + ease-out than sheet so the zoom reads clearly. */
-const SRP_CHROME_ZOOM_MS = 720
-const SRP_CHROME_SCALE = 0.91
 import { HotspotSparkIcon, NewProjectsCuteIcon } from './SrpFilterCuteIcons'
 import { SrpNewProjectsInfoBlock } from './SrpNewProjectsInfoBlock'
 import { SrpListingCard } from './SrpListingCard'
@@ -39,6 +35,11 @@ import {
   createDefaultSrpAppliedFilters,
   type SrpAppliedFilters,
 } from './srpFilterModel'
+import { gentleHaptic } from '../../lib/gentleHaptic'
+
+/** Background scale: longer + ease-out than sheet so the zoom reads clearly. */
+const SRP_CHROME_ZOOM_MS = 720
+const SRP_CHROME_SCALE = 0.91
 
 type SrpPageProps = {
   city: string
@@ -289,6 +290,10 @@ export function SrpPage({
     return stored ?? createDefaultSrpAppliedFilters()
   })
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false)
+  const openFiltersSheet = useCallback(() => {
+    gentleHaptic()
+    setFiltersSheetOpen(true)
+  }, [])
   /** Background zoom / radius — delayed to match sheet arm frame; off when sheet closes */
   const [filterChromeActive, setFilterChromeActive] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
@@ -600,7 +605,7 @@ export function SrpPage({
                 >
                   <button
                     type="button"
-                    onClick={() => setFiltersSheetOpen(true)}
+                    onClick={openFiltersSheet}
                     className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium leading-4"
                   >
                     {filterDimCount > 0
@@ -631,7 +636,7 @@ export function SrpPage({
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setFiltersSheetOpen(true)}
+                  onClick={openFiltersSheet}
                   className={[
                     'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium leading-4',
                     FILTER_PILL_SHADOW,

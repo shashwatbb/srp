@@ -1,16 +1,43 @@
 import type { ReactNode } from 'react'
 
+/** Full-viewport shell for the app on supported (mobile) viewports only. */
 export function MobileAppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh bg-[#E4E7EC]">
-      <div className="relative mx-auto min-h-dvh w-full max-w-[430px] bg-[#F6F8FB] shadow-[0_0_0_1px_rgba(0,0,0,0.04)] md:my-0 md:min-h-dvh md:shadow-[0_12px_48px_rgba(0,0,0,0.08)]">
+    <div className="min-h-dvh min-h-[100dvh] w-full bg-[#F6F8FB]">
+      <div className="mx-auto min-h-dvh min-h-[100dvh] w-full max-w-[430px] shadow-[0_0_0_1px_rgba(0,0,0,0.04)]">
         {children}
       </div>
     </div>
   )
 }
 
-/** Kept for API compatibility; app renders in a centered phone-width column on desktop too */
+/**
+ * Shown on viewports ≥768px. Deliberate product state — not an error page.
+ */
+export function MobileOnlyMessage() {
+  return (
+    <div
+      className="relative flex min-h-dvh min-h-[100dvh] w-full items-center justify-center overflow-x-hidden px-10 py-24 sm:px-12"
+      style={{
+        backgroundColor: '#f4f4f5',
+        backgroundImage: [
+          'linear-gradient(rgba(15, 23, 42, 0.038) 1px, transparent 1px)',
+          'linear-gradient(90deg, rgba(15, 23, 42, 0.038) 1px, transparent 1px)',
+        ].join(', '),
+        backgroundSize: '40px 40px',
+        backgroundPosition: 'center top',
+      }}
+    >
+      <main className="w-full max-w-sm text-center">
+        <p className="text-balance text-2xl font-medium leading-snug tracking-[-0.02em] text-slate-800 sm:text-[1.625rem]">
+          Only for mobile, bruh x
+        </p>
+      </main>
+    </div>
+  )
+}
+
+/** @deprecated Use `MobileOnlyMessage` at the app root when viewport is not mobile. */
 export function DesktopBlockedScreen() {
   return null
 }
