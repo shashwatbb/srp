@@ -138,12 +138,12 @@ const BUDGET_QUICK_CHIPS: readonly {
   min: number
   max: number
 }[] = [
-  { id: 'u75', label: 'Under ₹75L', min: 0, max: 0.75 },
-  { id: '75-15', label: '₹75L – ₹1.5Cr', min: 0.75, max: 1.5 },
-  { id: '15-25', label: '₹1.5Cr – ₹2.5Cr', min: 1.5, max: 2.5 },
-  { id: '25-4', label: '₹2.5Cr – ₹4Cr', min: 2.5, max: 4 },
-  { id: '4-5', label: '₹4Cr – ₹5Cr', min: 4, max: 5 },
-  { id: '5p', label: '₹5Cr+', min: 5, max: 30 },
+  { id: 'u75', label: 'Under 75L', min: 0, max: 0.75 },
+  { id: '75-15', label: '75L – 1.5Cr', min: 0.75, max: 1.5 },
+  { id: '15-25', label: '1.5Cr – 2.5Cr', min: 1.5, max: 2.5 },
+  { id: '25-4', label: '2.5Cr – 4Cr', min: 2.5, max: 4 },
+  { id: '4-5', label: '4Cr – 5Cr', min: 4, max: 5 },
+  { id: '5p', label: '5Cr+', min: 5, max: 30 },
 ]
 
 /** Crore part rounded to cents of a crore, max two fractional digits, trailing zeros trimmed */

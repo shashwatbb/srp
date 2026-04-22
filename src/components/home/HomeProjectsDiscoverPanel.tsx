@@ -20,9 +20,9 @@ const QUICK_FILTERS = [
 ] as const
 
 const BUDGET_BANDS = [
-  { id: 'b1', label: 'Under ₹1 Cr', query: 'Projects under ₹1 Cr' },
-  { id: 'b2', label: '₹1–2 Cr', query: 'Projects ₹1–2 Cr' },
-  { id: 'b3', label: '₹2 Cr+', query: 'Projects ₹2 Cr and above' },
+  { id: 'b1', label: 'Under 1 Cr', query: 'Projects under 1 Cr' },
+  { id: 'b2', label: '1–2 Cr', query: 'Projects 1–2 Cr' },
+  { id: 'b3', label: '2 Cr+', query: 'Projects 2 Cr and above' },
 ] as const
 
 function HorizontalRow({
