@@ -571,6 +571,82 @@ function BudgetFilterPanel({
   )
 }
 
+/** BHK: multi-select with budget-style chips, radio indicators, row separators, soft purple tap pulse */
+function BhkFilterList({
+  selectedIds,
+  onToggle,
+}: {
+  selectedIds: string[]
+  onToggle: (id: string) => void
+}) {
+  const [pulseId, setPulseId] = useState<string | null>(null)
+  const pulseTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimerRef.current != null) {
+        window.clearTimeout(pulseTimerRef.current)
+      }
+    }
+  }, [])
+
+  const triggerPulse = useCallback((id: string) => {
+    setPulseId(id)
+    if (pulseTimerRef.current != null) {
+      window.clearTimeout(pulseTimerRef.current)
+    }
+    pulseTimerRef.current = window.setTimeout(() => {
+      setPulseId(null)
+      pulseTimerRef.current = null
+    }, 320)
+  }, [])
+
+  return (
+    <div className="flex flex-col divide-y divide-[#ECECEC] overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white p-2">
+      {FILTER_BHK_OPTIONS.map((o) => {
+        const selected = selectedIds.includes(o.id)
+        const pulsing = pulseId === o.id
+        return (
+          <button
+            key={o.id}
+            type="button"
+            className="flex w-full items-center gap-3 py-3 pl-1.5 pr-1 text-left outline-none first:pt-2.5 last:pb-2.5"
+            onClick={() => {
+              onToggle(o.id)
+              triggerPulse(o.id)
+            }}
+          >
+            <span
+              className={[
+                'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors duration-200',
+                selected ? 'border-[#1a1a1a]' : 'border-[#CFCFCF]',
+              ].join(' ')}
+              aria-hidden
+            >
+              {selected ? (
+                <span className="h-2.5 w-2.5 rounded-full bg-[#1a1a1a]" />
+              ) : null}
+            </span>
+            <span
+              className={[
+                'min-w-0 flex-1 rounded-2xl border px-4 py-3.5 text-left text-[13px] font-medium leading-tight transition-all duration-300 ease-out',
+                selected
+                  ? 'border-black bg-[#F7F7F7] text-[#1a1a1a]'
+                  : 'border-[#D6D6D6] bg-white text-[#6B6B6B]',
+                pulsing ? 'bg-[#F3ECFF] ring-1 ring-[#D4C4F5]/50' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {o.label}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function DualSqftSliders({
   minSq,
   maxSq,
@@ -798,20 +874,16 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="bhk" />
-        <div className={listWrap}>
-          {FILTER_BHK_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.bhk.includes(o.id)}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  bhk: toggleInArray(d.bhk, o.id),
-                }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <BhkFilterList
+            selectedIds={draft.bhk}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                bhk: toggleInArray(d.bhk, id),
+              }))
+            }
+          />
         </div>
       </div>
     )
