@@ -493,27 +493,23 @@ function BudgetFilterPanel({
 
       <BudgetVerticalRange minCr={minCr} maxCr={maxCr} onChange={onChange} />
 
-      <div className="flex w-full max-w-[320px] flex-col gap-2 pt-1">
-        {BUDGET_QUICK_CHIPS.map((chip, i) => {
+      <div className="flex w-full flex-wrap justify-start gap-2 self-stretch pt-1">
+        {BUDGET_QUICK_CHIPS.map((chip) => {
           const selected = budgetChipMatches(minCr, maxCr, chip)
           return (
-            <div
+            <button
               key={chip.id}
-              className={i % 2 === 0 ? 'flex justify-start' : 'flex justify-end'}
+              type="button"
+              onClick={() => onChange(chip.min, chip.max)}
+              className={[
+                'shrink-0 rounded-lg border px-4 py-2.5 text-left text-[13px] font-medium leading-snug transition-colors active:opacity-85',
+                selected
+                  ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
+                  : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
+              ].join(' ')}
             >
-              <button
-                type="button"
-                onClick={() => onChange(chip.min, chip.max)}
-                className={[
-                  'max-w-[min(100%,280px)] rounded-lg border px-4 py-2.5 text-left text-[13px] font-medium leading-snug transition-colors active:opacity-85',
-                  selected
-                    ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
-                    : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
-                ].join(' ')}
-              >
-                {chip.label}
-              </button>
-            </div>
+              {chip.label}
+            </button>
           )
         })}
       </div>
