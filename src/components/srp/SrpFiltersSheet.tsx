@@ -499,7 +499,7 @@ function BudgetFilterPanel({
 
       <BudgetVerticalRange minCr={minCr} maxCr={maxCr} onChange={onChange} />
 
-      <div className="grid w-full grid-cols-2 gap-x-2 gap-y-2.5 self-stretch pt-1">
+      <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch pt-1">
         {BUDGET_QUICK_CHIPS.map((chip) => {
           const selected = budgetChipMatches(minCr, maxCr, chip)
           return (
@@ -508,10 +508,10 @@ function BudgetFilterPanel({
               type="button"
               onClick={() => onChange(chip.min, chip.max)}
               className={[
-                'min-w-0 rounded-lg border px-2.5 py-2 text-left text-[12px] font-medium leading-tight transition-colors active:opacity-85',
+                'min-w-0 rounded-2xl border px-4 py-3.5 text-left text-[12px] font-medium leading-tight transition-[color,background-color,border-color] active:opacity-90',
                 selected
-                  ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
-                  : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
+                  ? 'border-black bg-[#ECECEC] text-[#1a1a1a]'
+                  : 'border-[#D6D6D6] bg-white text-[#6B6B6B] active:bg-[#F5F5F5]',
               ].join(' ')}
             >
               {chip.label}
