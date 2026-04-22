@@ -621,20 +621,20 @@ function BhkFilterList({
           >
             <span
               className={[
-                'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[4px] border transition-[border-color,background-color] duration-200',
+                'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-[border-color,background-color] duration-200',
                 selected
-                  ? 'border-[#5B22DE] bg-[#5B22DE]'
+                  ? 'border-black bg-[#E8E8E8]'
                   : 'border-[#C8C8C8] bg-white',
               ].join(' ')}
               aria-hidden
             >
               {selected ? (
                 <svg
-                  width="12"
-                  height="12"
+                  width="10"
+                  height="10"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="white"
+                  stroke="#0a0a0a"
                   strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
