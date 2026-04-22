@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans:
+    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/**
+ * Projects surface: Airbnb-style type scale (sizes only) + neutral text/border
+ * tokens. Use with `.projects-shell` on the projects layout root.
+ */
+.projects-shell {
+  -webkit-text-size-adjust: 100%;
+  color: #222222;
+}
+
+@keyframes srp-skeleton-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@layer utilities {
+  .srp-skeleton-shimmer {
+    animation: srp-skeleton-shimmer 1.35s ease-in-out infinite;
+  }
+
+  /** Filter sheet: scroll without visible scrollbar */
+  .srp-filter-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .srp-filter-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* SRP full-screen filters: range inputs — soft track, bold thumb */
+.srp-filter-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: #eceef2;
+  accent-color: #5b22de;
+}
+
+.srp-filter-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 9999px;
+  background: #5b22de;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.srp-filter-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #eceef2;
+}
+
+.srp-filter-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #5b22de;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.srp-filter-range::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #eceef2;
+}
+
+/* SRP filters sheet: brand accent sliders */
+.srp-fs-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: #e8e8e8;
+  accent-color: #5b22de;
+}
+
+.srp-fs-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 9999px;
+  background: #5b22de;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.srp-fs-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #e8e8e8;
+}
+
+.srp-fs-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #5b22de;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.srp-fs-range::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #e8e8e8;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-family: var(--font-sans);
+    /* Avoid horizontal layout jump when modals set body overflow: hidden */
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    margin: 0;
+    font-family: inherit;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+}
