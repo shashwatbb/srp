@@ -190,7 +190,7 @@ function valueFromTrackClientY(clientY: number, rect: DOMRect): number {
 }
 
 const BUDGET_TRACK_H = 248
-const BUDGET_THUMB_PX = 21
+const BUDGET_THUMB_PX = 28
 const BUDGET_BAR_WIDTH_PX = 7
 /** Width for floating step-price pills (left of bar) */
 const BUDGET_THUMB_LABEL_COL_W = 80
