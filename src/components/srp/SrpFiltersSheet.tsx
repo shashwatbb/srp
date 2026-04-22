@@ -602,7 +602,7 @@ function BhkFilterList({
   }, [])
 
   return (
-    <div className="flex flex-col divide-y divide-[#ECECEC] overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white p-2">
+    <div className="flex w-full flex-col divide-y divide-[#ECECEC] bg-white">
       {FILTER_BHK_OPTIONS.map((o) => {
         const selected = selectedIds.includes(o.id)
         const pulsing = pulseId === o.id
@@ -610,7 +610,7 @@ function BhkFilterList({
           <button
             key={o.id}
             type="button"
-            className="flex w-full items-center gap-3 py-3 pl-1.5 pr-1 text-left outline-none first:pt-2.5 last:pb-2.5"
+            className="flex w-full items-center gap-3 py-3 pl-0.5 pr-0 text-left outline-none first:pt-2 last:pb-2"
             onClick={() => {
               onToggle(o.id)
               triggerPulse(o.id)
