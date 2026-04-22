@@ -172,15 +172,26 @@ function formatBudgetRangeLine(minCr: number, maxCr: number): string {
   return `${a} – ${b}`
 }
 
-function budgetChipMatches(
-  minCr: number,
-  maxCr: number,
-  chip: (typeof BUDGET_QUICK_CHIPS)[number],
+function budgetRangesClose(
+  minA: number,
+  maxA: number,
+  minB: number,
+  maxB: number,
+  eps = 0.03,
 ): boolean {
-  const eps = 0.02
-  return (
-    Math.abs(minCr - chip.min) < eps && Math.abs(maxCr - chip.max) < eps
-  )
+  return Math.abs(minA - minB) < eps && Math.abs(maxA - maxB) < eps
+}
+
+function budgetRangeFromChipIds(
+  ids: Set<string>,
+): { min: number; max: number } | null {
+  if (ids.size === 0) return null
+  const chips = BUDGET_QUICK_CHIPS.filter((c) => ids.has(c.id))
+  if (chips.length === 0) return null
+  return {
+    min: Math.min(...chips.map((c) => c.min)),
+    max: Math.max(...chips.map((c) => c.max)),
+  }
 }
 
 function valueFromTrackClientY(clientY: number, rect: DOMRect): number {
@@ -486,6 +497,43 @@ function BudgetFilterPanel({
   maxCr: number
   onChange: (min: number, max: number) => void
 }) {
+  const defaultBudget = useMemo(() => {
+    const d = createDefaultSrpAppliedFilters()
+    return { min: d.budgetMinCr, max: d.budgetMaxCr }
+  }, [])
+
+  const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  /** Slider (or other) edits outside the union of selected chips — drop chip highlights */
+  useEffect(() => {
+    setSelectedChipIds((prev) => {
+      if (prev.size === 0) return prev
+      const fromChips = budgetRangeFromChipIds(prev)
+      if (!fromChips) return new Set()
+      if (!budgetRangesClose(fromChips.min, fromChips.max, minCr, maxCr)) {
+        return new Set()
+      }
+      return prev
+    })
+  }, [minCr, maxCr])
+
+  const toggleChip = (chip: (typeof BUDGET_QUICK_CHIPS)[number]) => {
+    setSelectedChipIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(chip.id)) next.delete(chip.id)
+      else next.add(chip.id)
+      const r = budgetRangeFromChipIds(next)
+      if (next.size === 0) {
+        onChange(defaultBudget.min, defaultBudget.max)
+      } else if (r) {
+        onChange(r.min, r.max)
+      }
+      return next
+    })
+  }
+
   return (
     <div className="flex flex-col items-center gap-3 bg-white">
       <div className="w-full self-stretch text-left">
@@ -501,16 +549,16 @@ function BudgetFilterPanel({
 
       <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch pt-1">
         {BUDGET_QUICK_CHIPS.map((chip) => {
-          const selected = budgetChipMatches(minCr, maxCr, chip)
+          const selected = selectedChipIds.has(chip.id)
           return (
             <button
               key={chip.id}
               type="button"
-              onClick={() => onChange(chip.min, chip.max)}
+              onClick={() => toggleChip(chip)}
               className={[
-                'min-w-0 rounded-2xl border px-4 py-3.5 text-left text-[12px] font-medium leading-tight transition-[color,background-color,border-color] active:opacity-90',
+                'min-w-0 rounded-2xl border px-4 py-3.5 text-left text-[12px] font-medium leading-tight transition-all duration-200 ease-out active:opacity-90',
                 selected
-                  ? 'border-black bg-[#ECECEC] text-[#1a1a1a]'
+                  ? 'border-black bg-[#F7F7F7] text-[#1a1a1a]'
                   : 'border-[#D6D6D6] bg-white text-[#6B6B6B] active:bg-[#F5F5F5]',
               ].join(' ')}
             >
