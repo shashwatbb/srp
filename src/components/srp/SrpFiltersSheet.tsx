@@ -571,7 +571,7 @@ function BudgetFilterPanel({
   )
 }
 
-/** BHK: multi-select, checkmarks (no chip chrome), soft purple text pulse on tap */
+/** BHK: multi-select with real checkbox squares + vertical row separators */
 function BhkFilterList({
   selectedIds,
   onToggle,
@@ -602,7 +602,7 @@ function BhkFilterList({
   }, [])
 
   return (
-    <div className="flex w-full flex-col bg-white">
+    <div className="flex w-full flex-col divide-y divide-[#ECECEC] bg-white">
       {FILTER_BHK_OPTIONS.map((o) => {
         const selected = selectedIds.includes(o.id)
         const pulsing = pulseId === o.id
@@ -610,6 +610,9 @@ function BhkFilterList({
           <button
             key={o.id}
             type="button"
+            role="checkbox"
+            aria-checked={selected}
+            aria-label={o.label}
             className="flex w-full items-center gap-3 py-3.5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-2 last:pb-2"
             onClick={() => {
               onToggle(o.id)
@@ -617,17 +620,22 @@ function BhkFilterList({
             }}
           >
             <span
-              className="flex h-6 w-7 shrink-0 items-center justify-center text-[#5B22DE]"
+              className={[
+                'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[4px] border transition-[border-color,background-color] duration-200',
+                selected
+                  ? 'border-[#5B22DE] bg-[#5B22DE]'
+                  : 'border-[#C8C8C8] bg-white',
+              ].join(' ')}
               aria-hidden
             >
               {selected ? (
                 <svg
-                  width="20"
-                  height="20"
+                  width="12"
+                  height="12"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.25"
+                  stroke="white"
+                  strokeWidth="3"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
