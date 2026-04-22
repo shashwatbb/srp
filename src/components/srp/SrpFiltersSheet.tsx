@@ -675,7 +675,7 @@ function CategoryNav({
 }) {
   return (
     <nav
-      className="srp-filter-scroll flex h-full min-h-0 w-[38%] min-w-[118px] max-w-[158px] shrink-0 flex-col gap-2 overflow-y-auto overscroll-y-contain border-r border-[#E8E8E8] bg-white py-2"
+      className="srp-filter-scroll flex h-full min-h-0 w-[26%] min-w-[88px] max-w-[118px] shrink-0 flex-col gap-1.5 overflow-y-auto overscroll-y-contain border-r border-[#E8E8E8] bg-white py-1.5"
       style={{ WebkitOverflowScrolling: 'touch' }}
       aria-label="Filter categories"
     >
@@ -690,7 +690,7 @@ function CategoryNav({
               onSelect(id)
             }}
             className={[
-              'flex w-full items-stretch bg-white text-left text-[12px] leading-snug transition-[background] duration-200',
+              'flex w-full items-stretch bg-white text-left text-[11px] leading-snug transition-[background] duration-200',
               isActive
                 ? 'font-medium text-[#2d1f4e] [background-image:linear-gradient(90deg,#f3ecff_0%,#faf7ff_42%,#ffffff_100%)]'
                 : 'font-normal text-[#212121] active:bg-[#FCFCFC]',
@@ -704,8 +704,8 @@ function CategoryNav({
             ) : null}
             <span
               className={[
-                'min-w-0 flex-1 py-5 pr-3 text-left',
-                isActive ? 'pl-2' : 'pl-3',
+                'min-w-0 flex-1 py-3.5 pr-2 text-left',
+                isActive ? 'pl-1.5' : 'pl-2',
               ].join(' ')}
             >
               {FILTER_CATEGORY_LABELS[id]}
