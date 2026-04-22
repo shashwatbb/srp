@@ -146,21 +146,18 @@ const BUDGET_QUICK_CHIPS: readonly {
   { id: '5p', label: '₹5Cr+', min: 5, max: 30 },
 ]
 
-/** Whole lakhs / crores only — no decimal points (e.g. ₹50L, ₹1Cr, ₹26Cr 25L) */
+/**
+ * One amount token only (min or max) — no decimals, no split "Cr + L" third chunk.
+ * Whole crores as ₹NCr; otherwise total lakhs as ₹NL.
+ */
 function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
   if (cr <= 0) return 'Any'
   if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹30Cr+'
-  if (cr < 1) {
-    const lakhs = Math.round(cr * 100)
-    return lakhs <= 0 ? 'Any' : `₹${lakhs}L`
-  }
-  const whole = Math.floor(cr + 1e-9)
-  const frac = cr - whole
-  const lakhsFromFrac = Math.round(frac * 100 + 1e-9)
-  if (lakhsFromFrac <= 0 || lakhsFromFrac >= 100) {
-    return `₹${Math.round(cr)}Cr`
-  }
-  return `₹${whole}Cr ${lakhsFromFrac}L`
+  const lakhsTotal = Math.round(cr * 100)
+  if (lakhsTotal <= 0) return 'Any'
+  if (cr < 1) return `₹${lakhsTotal}L`
+  if (lakhsTotal % 100 === 0) return `₹${lakhsTotal / 100}Cr`
+  return `₹${lakhsTotal}L`
 }
 
 function formatBudgetRangeLine(minCr: number, maxCr: number): string {
@@ -200,6 +197,10 @@ const BUDGET_SLIDER_ROW_W =
   BUDGET_BAR_COL_W +
   BUDGET_SLIDER_ROW_GAP +
   BUDGET_STEPPER_COL_W
+/** Shift row so bar center lines up with max/min labels (page-centered block) */
+const BUDGET_SLIDER_ROW_ALIGN_SHIFT_PX =
+  BUDGET_SLIDER_ROW_W / 2 -
+  (BUDGET_THUMB_LABEL_COL_W + BUDGET_BAR_COL_W / 2)
 /** Silent tick marks to the right of the budget bar (no labels) */
 const BUDGET_BAR_STEPPER_COUNT = 9
 const BUDGET_BAR_GREY = '#E8EAEF'
@@ -341,17 +342,21 @@ function BudgetVerticalRange({
     (cr / BUDGET_CR_HI) * BUDGET_TRACK_H
 
   const stepPricePillClass =
-    'pointer-events-none absolute right-0 z-[1] truncate rounded-xl bg-[#5B22DE] px-2 py-1.5 text-center text-[10px] font-semibold leading-tight text-white'
+    'pointer-events-none absolute right-0 z-[1] truncate rounded-lg bg-[#5B22DE] px-2 py-1.5 text-center text-[10px] font-semibold leading-tight text-white'
 
   return (
-    <div className="flex flex-col items-center gap-6 px-2 py-4">
-      <p className="text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
+    <div className="flex w-full flex-col items-center gap-3 px-2 py-4">
+      <p className="w-full text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
         Maximum Price
       </p>
 
       <div
         className="relative mx-auto shrink-0"
-        style={{ height: BUDGET_TRACK_H, width: BUDGET_SLIDER_ROW_W }}
+        style={{
+          height: BUDGET_TRACK_H,
+          width: BUDGET_SLIDER_ROW_W,
+          transform: `translateX(${BUDGET_SLIDER_ROW_ALIGN_SHIFT_PX}px)`,
+        }}
       >
         <div
           className="pointer-events-none absolute inset-y-0 left-0 z-[1]"
@@ -458,7 +463,7 @@ function BudgetVerticalRange({
         </div>
       </div>
 
-      <p className="text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
+      <p className="w-full text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
         Minimum Price
       </p>
     </div>
@@ -476,8 +481,8 @@ function BudgetFilterPanel({
   onChange: (min: number, max: number) => void
 }) {
   return (
-    <div className="flex flex-col gap-4 bg-white">
-      <div>
+    <div className="flex flex-col items-center gap-4 bg-white">
+      <div className="w-full text-center">
         <p className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
           Price range
         </p>
@@ -488,23 +493,27 @@ function BudgetFilterPanel({
 
       <BudgetVerticalRange minCr={minCr} maxCr={maxCr} onChange={onChange} />
 
-      <div className="flex flex-wrap justify-start gap-2 pt-1">
-        {BUDGET_QUICK_CHIPS.map((chip) => {
+      <div className="flex w-full max-w-[320px] flex-col gap-2 pt-1">
+        {BUDGET_QUICK_CHIPS.map((chip, i) => {
           const selected = budgetChipMatches(minCr, maxCr, chip)
           return (
-            <button
+            <div
               key={chip.id}
-              type="button"
-              onClick={() => onChange(chip.min, chip.max)}
-              className={[
-                'rounded-lg border px-4 py-2.5 text-left text-[13px] font-medium leading-snug transition-colors active:opacity-85',
-                selected
-                  ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
-                  : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
-              ].join(' ')}
+              className={i % 2 === 0 ? 'flex justify-start' : 'flex justify-end'}
             >
-              {chip.label}
-            </button>
+              <button
+                type="button"
+                onClick={() => onChange(chip.min, chip.max)}
+                className={[
+                  'max-w-[min(100%,280px)] rounded-lg border px-4 py-2.5 text-left text-[13px] font-medium leading-snug transition-colors active:opacity-85',
+                  selected
+                    ? 'border-[#D4C4F5] bg-[#F6F2FF] text-[#3B2A66]'
+                    : 'border-[#EDEDED] bg-[#FAFAFA] text-[#454545] active:bg-[#F3F3F3]',
+                ].join(' ')}
+              >
+                {chip.label}
+              </button>
+            </div>
           )
         })}
       </div>
