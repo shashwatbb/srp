@@ -649,6 +649,17 @@ function ExpandableOptionList({
   )
 }
 
+/** Left category rail only — very light tap when switching category */
+function filterLeftCategoryHaptic() {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    try {
+      navigator.vibrate(5)
+    } catch {
+      /* unsupported */
+    }
+  }
+}
+
 function CategoryNav({
   active,
   onSelect,
@@ -658,7 +669,7 @@ function CategoryNav({
 }) {
   return (
     <nav
-      className="srp-filter-scroll flex h-full min-h-0 w-[38%] min-w-[118px] max-w-[158px] shrink-0 flex-col overflow-y-auto overscroll-y-contain border-r border-[#E8E8E8] bg-white py-1"
+      className="srp-filter-scroll flex h-full min-h-0 w-[38%] min-w-[118px] max-w-[158px] shrink-0 flex-col gap-2 overflow-y-auto overscroll-y-contain border-r border-[#E8E8E8] bg-white py-2"
       style={{ WebkitOverflowScrolling: 'touch' }}
       aria-label="Filter categories"
     >
@@ -668,7 +679,10 @@ function CategoryNav({
           <button
             key={id}
             type="button"
-            onClick={() => onSelect(id)}
+            onClick={() => {
+              if (id !== active) filterLeftCategoryHaptic()
+              onSelect(id)
+            }}
             className={[
               'flex w-full items-stretch bg-white text-left text-[12px] leading-snug transition-[background] duration-200',
               isActive
@@ -684,7 +698,7 @@ function CategoryNav({
             ) : null}
             <span
               className={[
-                'min-w-0 flex-1 py-3.5 pr-3 text-left',
+                'min-w-0 flex-1 py-5 pr-3 text-left',
                 isActive ? 'pl-2' : 'pl-3',
               ].join(' ')}
             >
