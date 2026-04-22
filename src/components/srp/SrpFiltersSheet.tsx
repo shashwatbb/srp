@@ -571,7 +571,7 @@ function BudgetFilterPanel({
   )
 }
 
-/** BHK: multi-select with budget-style chips, radio indicators, row separators, soft purple tap pulse */
+/** BHK: multi-select, checkmarks (no chip chrome), soft purple text pulse on tap */
 function BhkFilterList({
   selectedIds,
   onToggle,
@@ -602,7 +602,7 @@ function BhkFilterList({
   }, [])
 
   return (
-    <div className="flex w-full flex-col divide-y divide-[#ECECEC] bg-white">
+    <div className="flex w-full flex-col bg-white">
       {FILTER_BHK_OPTIONS.map((o) => {
         const selected = selectedIds.includes(o.id)
         const pulsing = pulseId === o.id
@@ -610,30 +610,38 @@ function BhkFilterList({
           <button
             key={o.id}
             type="button"
-            className="flex w-full items-center gap-3 py-3 pl-0.5 pr-0 text-left outline-none first:pt-2 last:pb-2"
+            className="flex w-full items-center gap-3 py-3.5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-2 last:pb-2"
             onClick={() => {
               onToggle(o.id)
               triggerPulse(o.id)
             }}
           >
             <span
-              className={[
-                'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors duration-200',
-                selected ? 'border-[#1a1a1a]' : 'border-[#CFCFCF]',
-              ].join(' ')}
+              className="flex h-6 w-7 shrink-0 items-center justify-center text-[#5B22DE]"
               aria-hidden
             >
               {selected ? (
-                <span className="h-2.5 w-2.5 rounded-full bg-[#1a1a1a]" />
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.25"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
               ) : null}
             </span>
             <span
               className={[
-                'min-w-0 flex-1 rounded-2xl border px-4 py-3.5 text-left text-[13px] font-medium leading-tight transition-all duration-300 ease-out',
+                'min-w-0 flex-1 py-0.5 text-left text-[15px] leading-snug transition-colors duration-300 ease-out',
                 selected
-                  ? 'border-black bg-[#F7F7F7] text-[#1a1a1a]'
-                  : 'border-[#D6D6D6] bg-white text-[#6B6B6B]',
-                pulsing ? 'bg-[#F3ECFF] ring-1 ring-[#D4C4F5]/50' : '',
+                  ? 'font-medium text-[#212121]'
+                  : 'font-normal text-[#454545]',
+                pulsing ? 'text-[#7C5BD6]' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
