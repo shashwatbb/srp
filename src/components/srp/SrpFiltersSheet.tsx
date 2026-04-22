@@ -430,7 +430,7 @@ function BudgetVerticalRange({
             type="button"
             aria-label="Minimum price"
             aria-valuenow={minCr}
-            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
+            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] shadow-[0_2px_6px_rgba(0,0,0,0.1),0_4px_14px_-2px_rgba(91,34,222,0.28)] outline-none active:cursor-grabbing"
             style={thumbStyle(minCr)}
             onPointerDown={(e) => {
               e.stopPropagation()
@@ -441,7 +441,7 @@ function BudgetVerticalRange({
             type="button"
             aria-label="Maximum price"
             aria-valuenow={maxCr}
-            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
+            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] shadow-[0_2px_6px_rgba(0,0,0,0.1),0_4px_14px_-2px_rgba(91,34,222,0.28)] outline-none active:cursor-grabbing"
             style={thumbStyle(maxCr)}
             onPointerDown={(e) => {
               e.stopPropagation()
