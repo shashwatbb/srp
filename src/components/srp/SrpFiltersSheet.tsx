@@ -131,7 +131,6 @@ function toggleInArray<T extends string>(arr: T[], id: T): T[] {
 const BUDGET_CR_LO = 0
 const BUDGET_CR_HI = 30
 const BUDGET_CR_GAP = 0.05
-const BUDGET_CR_STEP = 0.05
 
 const BUDGET_QUICK_CHIPS: readonly {
   id: string
@@ -148,7 +147,7 @@ const BUDGET_QUICK_CHIPS: readonly {
 ]
 
 function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
-  if (cr <= 0) return '₹0'
+  if (cr <= 0) return 'Any'
   if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹30Cr+'
   if (cr < 1) {
     const lakhs = Math.round(cr * 100)
@@ -162,6 +161,12 @@ function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
   return `₹${s}Cr`
 }
 
+function formatBudgetRangeLine(minCr: number, maxCr: number): string {
+  const a = formatBudgetPriceCr(minCr, 'min')
+  const b = formatBudgetPriceCr(maxCr, 'max')
+  return `${a} – ${b}`
+}
+
 function budgetChipMatches(
   minCr: number,
   maxCr: number,
@@ -173,7 +178,259 @@ function budgetChipMatches(
   )
 }
 
-/** Budget filter only — vertical sliders, live prices, inputs, quick chips */
+function valueFromTrackClientY(clientY: number, rect: DOMRect): number {
+  const fromBottom = rect.bottom - clientY
+  const ratio = Math.min(1, Math.max(0, fromBottom / rect.height))
+  return ratio * BUDGET_CR_HI
+}
+
+const BUDGET_TRACK_H = 248
+const BUDGET_THUMB_PX = 21
+const BUDGET_BAR_WIDTH_PX = 8
+/** Silent tick marks to the right of the budget bar (no labels) */
+const BUDGET_BAR_STEPPER_COUNT = 9
+const BUDGET_BAR_GREY = '#E8EAEF'
+const BUDGET_STEPPER_CRS: readonly number[] = (() => {
+  const n = BUDGET_BAR_STEPPER_COUNT
+  if (n < 2) return [BUDGET_CR_LO, BUDGET_CR_HI]
+  return Array.from({ length: n }, (_, i) =>
+    Number((BUDGET_CR_HI * (1 - i / (n - 1))).toFixed(4)),
+  )
+})()
+
+function snapToNearestStepperCr(v: number): number {
+  let best = BUDGET_STEPPER_CRS[0]!
+  let bestD = Infinity
+  for (const s of BUDGET_STEPPER_CRS) {
+    const d = Math.abs(v - s)
+    if (d < bestD) {
+      bestD = d
+      best = s
+    }
+  }
+  return best
+}
+
+function snapMinFromTrack(v: number, maxCr: number): number {
+  const s = snapToNearestStepperCr(v)
+  const limit = maxCr - BUDGET_CR_GAP
+  if (s <= limit) return Math.max(BUDGET_CR_LO, s)
+  const below = BUDGET_STEPPER_CRS.filter((x) => x <= limit + 1e-9)
+  return below.length ? below[below.length - 1]! : BUDGET_CR_LO
+}
+
+function snapMaxFromTrack(v: number, minCr: number): number {
+  const s = snapToNearestStepperCr(v)
+  const limit = minCr + BUDGET_CR_GAP
+  if (s >= limit) return Math.min(BUDGET_CR_HI, s)
+  const above = BUDGET_STEPPER_CRS.filter((x) => x >= limit - 1e-9)
+  return above.length ? above[0]! : BUDGET_CR_HI
+}
+
+function budgetDragHaptic() {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate(10)
+  }
+}
+
+/** Single thin vertical track, two thumbs, purple range — budget only */
+function BudgetVerticalRange({
+  minCr,
+  maxCr,
+  onChange,
+}: {
+  minCr: number
+  maxCr: number
+  onChange: (min: number, max: number) => void
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<'min' | 'max' | null>(null)
+
+  const applyMin = useCallback(
+    (v: number) => {
+      const next = snapMinFromTrack(v, maxCr)
+      onChange(Math.max(BUDGET_CR_LO, next), maxCr)
+    },
+    [maxCr, onChange],
+  )
+
+  const applyMax = useCallback(
+    (v: number) => {
+      const next = snapMaxFromTrack(v, minCr)
+      onChange(minCr, Math.min(BUDGET_CR_HI, next))
+    },
+    [minCr, onChange],
+  )
+
+  const pointerMove = useCallback(
+    (e: PointerEvent) => {
+      const el = trackRef.current
+      const role = dragRef.current
+      if (!el || !role) return
+      const rect = el.getBoundingClientRect()
+      const v = valueFromTrackClientY(e.clientY, rect)
+      if (role === 'min') {
+        const next = snapMinFromTrack(v, maxCr)
+        if (next !== minCr) {
+          budgetDragHaptic()
+          onChange(Math.max(BUDGET_CR_LO, next), maxCr)
+        }
+      } else {
+        const next = snapMaxFromTrack(v, minCr)
+        if (next !== maxCr) {
+          budgetDragHaptic()
+          onChange(minCr, Math.min(BUDGET_CR_HI, next))
+        }
+      }
+    },
+    [maxCr, minCr, onChange],
+  )
+
+  const pointerUp = useCallback(() => {
+    dragRef.current = null
+    window.removeEventListener('pointermove', pointerMove)
+    window.removeEventListener('pointerup', pointerUp)
+    window.removeEventListener('pointercancel', pointerUp)
+  }, [pointerMove])
+
+  const startDrag = (role: 'min' | 'max', e: React.PointerEvent) => {
+    e.preventDefault()
+    dragRef.current = role
+    e.currentTarget.setPointerCapture(e.pointerId)
+    window.addEventListener('pointermove', pointerMove)
+    window.addEventListener('pointerup', pointerUp)
+    window.addEventListener('pointercancel', pointerUp)
+  }
+
+  const trackBackgroundPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    const el = trackRef.current
+    if (!el || !el.contains(e.target as Node)) return
+    const rect = el.getBoundingClientRect()
+    const v = valueFromTrackClientY(e.clientY, rect)
+    const dMin = Math.abs(v - minCr)
+    const dMax = Math.abs(v - maxCr)
+    if (dMin <= dMax) {
+      const next = snapMinFromTrack(v, maxCr)
+      if (next !== minCr) budgetDragHaptic()
+      applyMin(v)
+    } else {
+      const next = snapMaxFromTrack(v, minCr)
+      if (next !== maxCr) budgetDragHaptic()
+      applyMax(v)
+    }
+  }
+
+  const thumbBottomPx = (cr: number) =>
+    (cr / BUDGET_CR_HI) * BUDGET_TRACK_H - BUDGET_THUMB_PX / 2
+
+  const purpleBottom = (minCr / BUDGET_CR_HI) * BUDGET_TRACK_H
+  const purpleHeight = ((maxCr - minCr) / BUDGET_CR_HI) * BUDGET_TRACK_H
+
+  const thumbStyle = (cr: number) => ({
+    left: '50%',
+    bottom: `${thumbBottomPx(cr)}px`,
+    width: BUDGET_THUMB_PX,
+    height: BUDGET_THUMB_PX,
+    transform: 'translateX(-50%)',
+  })
+
+  return (
+    <div className="flex flex-col items-center gap-2.5 px-2 py-4">
+      <p className="text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
+        Maximum Price
+      </p>
+
+      <div
+        className="flex shrink-0 touch-none items-stretch justify-center gap-2"
+        style={{ height: BUDGET_TRACK_H }}
+      >
+        <div className="relative h-full w-12 shrink-0">
+          <div
+            ref={trackRef}
+            role="presentation"
+            className="absolute inset-y-0 left-1/2 z-0 w-10 -translate-x-1/2 cursor-pointer"
+            style={{ height: BUDGET_TRACK_H }}
+            onPointerDown={trackBackgroundPointerDown}
+          >
+            <div
+              className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 rounded-full"
+              style={{
+                width: BUDGET_BAR_WIDTH_PX,
+                backgroundColor: BUDGET_BAR_GREY,
+              }}
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-[#5B22DE]"
+              style={{
+                width: BUDGET_BAR_WIDTH_PX,
+                bottom: `${purpleBottom}px`,
+                height: `${Math.max(0, purpleHeight)}px`,
+              }}
+              aria-hidden
+            />
+          </div>
+
+          <button
+            type="button"
+            aria-label="Minimum price"
+            aria-valuenow={minCr}
+            className="absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
+            style={thumbStyle(minCr)}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              startDrag('min', e)
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Maximum price"
+            aria-valuenow={maxCr}
+            className="absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] outline-none active:cursor-grabbing"
+            style={thumbStyle(maxCr)}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              startDrag('max', e)
+            }}
+          />
+        </div>
+
+        <div className="flex w-[88px] shrink-0 flex-col justify-center px-0.5">
+          <div
+            className="rounded-2xl px-2.5 py-2 text-center text-[10px] font-semibold leading-snug text-white"
+            style={{ backgroundColor: BUDGET_BAR_GREY }}
+          >
+            {formatBudgetRangeLine(minCr, maxCr)}
+          </div>
+        </div>
+
+        <div
+          className="pointer-events-none flex h-full w-5 shrink-0 flex-col justify-between py-1"
+          aria-hidden
+        >
+          {Array.from({ length: BUDGET_BAR_STEPPER_COUNT }, (_, i) => (
+            <span
+              key={i}
+              className="mx-auto shrink-0 rounded-full"
+              style={{
+                width: 8,
+                height: 5,
+                backgroundColor: BUDGET_BAR_GREY,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <p className="text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
+        Minimum Price
+      </p>
+    </div>
+  )
+}
+
+/** Budget filter only — minimal vertical range, inputs, quick chips */
 function BudgetFilterPanel({
   minCr,
   maxCr,
@@ -183,106 +440,20 @@ function BudgetFilterPanel({
   maxCr: number
   onChange: (min: number, max: number) => void
 }) {
-  const setMin = (v: number) => {
-    const next = Math.min(v, maxCr - BUDGET_CR_GAP)
-    onChange(Math.max(BUDGET_CR_LO, next), maxCr)
-  }
-  const setMax = (v: number) => {
-    const next = Math.max(v, minCr + BUDGET_CR_GAP)
-    onChange(minCr, Math.min(BUDGET_CR_HI, next))
-  }
-
-  const inputClass =
-    'w-full rounded-xl border border-[#E8E8E8] bg-white px-3 py-2.5 text-center text-[15px] font-medium tabular-nums text-[#1a1a1a] outline-none transition-[border-color] focus:border-[#C4B5E8]'
-
   return (
-    <div className="flex flex-col gap-7 bg-white">
-      <div className="flex items-start justify-center gap-12 px-1">
-        <div className="min-w-0 flex-1 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
-            Min
-          </p>
-          <p className="mt-1.5 text-[1.35rem] font-semibold leading-tight tracking-tight text-[#1a1a1a]">
-            {formatBudgetPriceCr(minCr, 'min')}
-          </p>
-        </div>
-        <div className="min-w-0 flex-1 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#9CA3AF]">
-            Max
-          </p>
-          <p className="mt-1.5 text-[1.35rem] font-semibold leading-tight tracking-tight text-[#1a1a1a]">
-            {formatBudgetPriceCr(maxCr, 'max')}
-          </p>
-        </div>
+    <div className="flex flex-col gap-4 bg-white">
+      <div>
+        <p className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
+          Price range
+        </p>
+        <p className="mt-1 text-[16px] font-medium leading-snug tracking-tight text-[#5B22DE]">
+          {formatBudgetRangeLine(minCr, maxCr)}
+        </p>
       </div>
 
-      <div className="flex items-center justify-center gap-10">
-        <div className="srp-budget-v-range-wrap">
-          <input
-            type="range"
-            min={BUDGET_CR_LO}
-            max={BUDGET_CR_HI}
-            step={BUDGET_CR_STEP}
-            value={minCr}
-            onChange={(e) => setMin(parseFloat(e.target.value))}
-            className="srp-budget-v-range"
-            aria-label="Minimum budget"
-          />
-        </div>
-        <div className="srp-budget-v-range-wrap">
-          <input
-            type="range"
-            min={BUDGET_CR_LO}
-            max={BUDGET_CR_HI}
-            step={BUDGET_CR_STEP}
-            value={maxCr}
-            onChange={(e) => setMax(parseFloat(e.target.value))}
-            className="srp-budget-v-range"
-            aria-label="Maximum budget"
-          />
-        </div>
-      </div>
+      <BudgetVerticalRange minCr={minCr} maxCr={maxCr} onChange={onChange} />
 
-      <div className="flex gap-3">
-        <label className="min-w-0 flex-1">
-          <span className="mb-1.5 block text-center text-[10px] font-medium uppercase tracking-[0.14em] text-[#9CA3AF]">
-            Min (₹ Cr)
-          </span>
-          <input
-            type="number"
-            min={BUDGET_CR_LO}
-            max={BUDGET_CR_HI}
-            step={BUDGET_CR_STEP}
-            value={Number.isFinite(minCr) ? minCr : BUDGET_CR_LO}
-            onChange={(e) => {
-              const raw = parseFloat(e.target.value)
-              const v = Number.isFinite(raw) ? raw : BUDGET_CR_LO
-              setMin(v)
-            }}
-            className={inputClass}
-          />
-        </label>
-        <label className="min-w-0 flex-1">
-          <span className="mb-1.5 block text-center text-[10px] font-medium uppercase tracking-[0.14em] text-[#9CA3AF]">
-            Max (₹ Cr)
-          </span>
-          <input
-            type="number"
-            min={BUDGET_CR_LO}
-            max={BUDGET_CR_HI}
-            step={BUDGET_CR_STEP}
-            value={Number.isFinite(maxCr) ? maxCr : BUDGET_CR_HI}
-            onChange={(e) => {
-              const raw = parseFloat(e.target.value)
-              const v = Number.isFinite(raw) ? raw : BUDGET_CR_HI
-              setMax(v)
-            }}
-            className={inputClass}
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-2 pt-1">
         {BUDGET_QUICK_CHIPS.map((chip) => {
           const selected = budgetChipMatches(minCr, maxCr, chip)
           return (

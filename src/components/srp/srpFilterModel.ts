@@ -31,7 +31,7 @@ export function createDefaultSrpAppliedFilters(): SrpAppliedFilters {
     useHotspot: false,
     upcomingOnly: false,
     hotspotAreaIds: [...ALL_HOTSPOT_AREA_IDS],
-    budgetMinCr: 0,
+    budgetMinCr: 0.05,
     budgetMaxCr: 30,
     bhk: [],
     propertyTypes: [],
