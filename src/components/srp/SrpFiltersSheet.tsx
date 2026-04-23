@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1207,41 +1208,70 @@ function CategoryNav({
   active: FilterCategoryId
   onSelect: (id: FilterCategoryId) => void
 }) {
+  const navRef = useRef<HTMLElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [bar, setBar] = useState({ top: 0, height: 0 })
+
+  const syncBar = useCallback(() => {
+    const nav = navRef.current
+    const idx = FILTER_CATEGORY_IDS.indexOf(active)
+    const btn = itemRefs.current[idx]
+    if (!nav || !btn) return
+    setBar({ top: btn.offsetTop, height: btn.offsetHeight })
+  }, [active])
+
+  useLayoutEffect(() => {
+    syncBar()
+  }, [syncBar])
+
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => syncBar())
+    ro.observe(nav)
+    return () => ro.disconnect()
+  }, [syncBar])
+
   return (
     <nav
-      className="srp-filter-scroll flex h-full min-h-0 w-[26%] min-w-[88px] max-w-[118px] shrink-0 flex-col gap-1.5 overflow-y-auto overscroll-y-contain border-r border-[#E8E8E8] bg-white py-1.5"
+      ref={navRef}
+      className="srp-filter-scroll relative flex h-full min-h-0 w-[26%] min-w-[88px] max-w-[118px] shrink-0 flex-col gap-1.5 overflow-y-auto overscroll-y-contain border-r border-[#E8E8E8] bg-white py-1.5"
       style={{ WebkitOverflowScrolling: 'touch' }}
       aria-label="Filter categories"
     >
-      {FILTER_CATEGORY_IDS.map((id) => {
+      <div
+        aria-hidden
+        className={[
+          'pointer-events-none absolute left-0 top-0 z-[1] w-[5px] rounded-r-[10px] bg-[#5B22DE]',
+          'motion-safe:transition-[transform,height,opacity] motion-safe:duration-[240ms] motion-safe:ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+        ].join(' ')}
+        style={{
+          transform: `translateY(${bar.top}px)`,
+          height: bar.height > 0 ? bar.height : 0,
+          opacity: bar.height > 0 ? 1 : 0,
+        }}
+      />
+      {FILTER_CATEGORY_IDS.map((id, index) => {
         const isActive = id === active
         return (
           <button
             key={id}
+            ref={(el) => {
+              itemRefs.current[index] = el
+            }}
             type="button"
             onClick={() => {
               if (id !== active) filterCategoryRailHaptic()
               onSelect(id)
             }}
             className={[
-              'flex w-full items-stretch bg-white text-left text-[13px] leading-snug transition-[background] duration-200',
+              'relative z-0 flex w-full items-stretch bg-white text-left text-[13px] leading-snug transition-[background] duration-200',
               isActive
                 ? 'font-medium text-[#2d1f4e] [background-image:linear-gradient(90deg,#f3ecff_0%,#faf7ff_42%,#ffffff_100%)]'
                 : 'font-normal text-[#212121] active:bg-[#FCFCFC]',
             ].join(' ')}
           >
-            {isActive ? (
-              <span
-                className="w-[5px] shrink-0 self-stretch rounded-r-[10px] bg-[#5B22DE]"
-                aria-hidden
-              />
-            ) : null}
-            <span
-              className={[
-                'min-w-0 flex-1 py-3.5 pr-2 text-left',
-                isActive ? 'pl-1.5' : 'pl-2',
-              ].join(' ')}
-            >
+            <span className="min-w-0 flex-1 py-3.5 pl-2 pr-2 text-left">
               {FILTER_CATEGORY_LABELS[id]}
             </span>
           </button>
@@ -1742,7 +1772,7 @@ export function SrpFiltersSheet({
             onClick={(e) => e.stopPropagation()}
           >
             <header
-              className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
+              className="flex shrink-0 items-center gap-3 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
               style={{
                 paddingTop: 'max(10px, env(safe-area-inset-top, 0px))',
               }}
@@ -1763,14 +1793,6 @@ export function SrpFiltersSheet({
                   Filter
                 </h1>
               </div>
-
-              <button
-                type="button"
-                onClick={clearAll}
-                className="shrink-0 px-1 py-2 text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
-              >
-                Clear all
-              </button>
             </header>
 
             <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
@@ -1789,24 +1811,33 @@ export function SrpFiltersSheet({
                 paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
               }}
             >
-              <button
-                type="button"
-                onClick={apply}
-                disabled={!applyCtaActive}
-                className={[
-                  'w-full rounded-[14px] py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
-                  applyCtaActive
-                    ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
-                    : 'cursor-not-allowed text-[#454545] opacity-80',
-                ].join(' ')}
-                style={
-                  applyCtaActive
-                    ? undefined
-                    : { backgroundColor: FS.applyBg, boxShadow: 'none' }
-                }
-              >
-                Apply
-              </button>
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="min-w-0 flex-1 rounded-[14px] border border-[#D8D8D8] bg-white py-3.5 text-[15px] font-semibold text-[#212121] transition-[background-color,border-color] active:bg-[#F4F4F4]"
+                >
+                  Clear filters
+                </button>
+                <button
+                  type="button"
+                  onClick={apply}
+                  disabled={!applyCtaActive}
+                  className={[
+                    'min-w-0 flex-1 rounded-[14px] py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
+                    applyCtaActive
+                      ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
+                      : 'cursor-not-allowed text-[#454545] opacity-80',
+                  ].join(' ')}
+                  style={
+                    applyCtaActive
+                      ? undefined
+                      : { backgroundColor: FS.applyBg, boxShadow: 'none' }
+                  }
+                >
+                  Apply
+                </button>
+              </div>
             </footer>
           </div>
         </div>
