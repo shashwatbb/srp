@@ -34,8 +34,11 @@ import {
 } from '../../persist/journeySession'
 import {
   applySrpFilters,
+  areSrpAppliedFiltersEqual,
   countActiveSrpFilterDimensions,
   createDefaultSrpAppliedFilters,
+  getAppliedFilterChips,
+  type AppliedFilterChip,
   type SrpAppliedFilters,
 } from './srpFilterModel'
 import { gentleHaptic } from '../../lib/gentleHaptic'
@@ -58,6 +61,8 @@ const FILTERS: { id: string; label: string }[] = [
   { id: 'bua', label: 'Built up area' },
   { id: 'cs', label: 'Construction status' },
 ]
+const FILTER_MAIN = FILTERS[0]!
+const FILTER_SHEET_SHORTCUTS = FILTERS.slice(1)
 
 const INITIAL_VISIBLE = 10
 const VIEW_MORE_STEP = 10
@@ -71,9 +76,39 @@ const EMPTY_LIST_SKELETON_COUNT = 3
 /** Base simulated delay after filter taps (ms); a little jitter is added per refresh */
 const LIST_REFRESH_MS_MIN = 560
 const LIST_REFRESH_MS_JITTER = 180
+/** Slightly shorter, after filter sheet closes — feels like a light reload */
+const LIST_REFRESH_POST_SHEET_MS_MIN = 400
+const LIST_REFRESH_POST_SHEET_JITTER = 100
+
+function mergeAppliedChipOrder(
+  prevFilters: SrpAppliedFilters,
+  nextFilters: SrpAppliedFilters,
+  order: string[],
+): string[] {
+  const prevChips = getAppliedFilterChips(prevFilters)
+  const nextChips = getAppliedFilterChips(nextFilters)
+  const prevLabel = new Map(prevChips.map((c) => [c.id, c.label]))
+  const changed = nextChips.filter((c) => prevLabel.get(c.id) !== c.label)
+  const changedFront = [...changed].reverse().map((c) => c.id)
+  const nextIdSet = new Set(nextChips.map((c) => c.id))
+
+  const rest = order.filter(
+    (id) => nextIdSet.has(id) && !changedFront.includes(id),
+  )
+  const out = [...changedFront, ...rest]
+  for (const c of nextChips) {
+    if (!out.includes(c.id)) out.push(c.id)
+  }
+  return out
+}
 
 /** Mild elevation on filter chips */
 const FILTER_PILL_SHADOW = 'shadow-[0_1px_3px_rgba(0,0,0,0.07)]'
+
+/** Applied filter chips + active filter pill — lavender fill, primary purple label */
+const FILTER_PILL_ACTIVE_PURPLE =
+  'border-[#5B22DE] bg-[#F3ECFF] text-[#5B22DE]'
+const APPLIED_FILTER_CHIP_ACTIVE = FILTER_PILL_ACTIVE_PURPLE
 
 function BackIcon() {
   return (
@@ -151,6 +186,24 @@ function ChevronDown({ className }: { className?: string }) {
       aria-hidden
     >
       <path d="M6 9l6 6 6-6" />
+    </svg>
+  )
+}
+
+/** Filter icon for the main Filters pill (replaces chevron) */
+function SrpFiltersPillIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 7h16M7 12h10M10 17h4" />
     </svg>
   )
 }
@@ -334,21 +387,37 @@ export function SrpPage({
   const [listLoading, setListLoading] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
   const listRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** After Apply: run light skeleton once the sheet has finished closing */
+  const refreshListAfterFilterApplyRef = useRef(false)
+  const appliedFiltersRef = useRef(appliedFilters)
+  appliedFiltersRef.current = appliedFilters
+
+  const [appliedChipOrder, setAppliedChipOrder] = useState<string[]>([])
 
   const showListSkeleton = listLoading || initialLoad
 
-  const bumpListRefresh = useCallback(() => {
-    setListLoading(true)
-    if (listRefreshTimerRef.current) {
-      clearTimeout(listRefreshTimerRef.current)
-    }
-    const ms =
-      LIST_REFRESH_MS_MIN + Math.floor(Math.random() * LIST_REFRESH_MS_JITTER)
-    listRefreshTimerRef.current = setTimeout(() => {
-      setListLoading(false)
-      listRefreshTimerRef.current = null
-    }, ms)
-  }, [])
+  const bumpListRefresh = useCallback(
+    (kind: 'default' | 'postSheet' = 'default') => {
+      setListLoading(true)
+      if (listRefreshTimerRef.current) {
+        clearTimeout(listRefreshTimerRef.current)
+      }
+      const base =
+        kind === 'postSheet'
+          ? LIST_REFRESH_POST_SHEET_MS_MIN
+          : LIST_REFRESH_MS_MIN
+      const jitter =
+        kind === 'postSheet'
+          ? LIST_REFRESH_POST_SHEET_JITTER
+          : LIST_REFRESH_MS_JITTER
+      const ms = base + Math.floor(Math.random() * jitter)
+      listRefreshTimerRef.current = setTimeout(() => {
+        setListLoading(false)
+        listRefreshTimerRef.current = null
+      }, ms)
+    },
+    [],
+  )
 
   useEffect(() => {
     return () => {
@@ -378,6 +447,16 @@ export function SrpPage({
     writeStoredAppliedFilters(city, initialQuery, appliedFilters)
   }, [appliedFilters, city, initialQuery])
 
+  /** Prune chip order when dimensions disappear (strip toggles, chip X, etc.). New chips still render via `orderedAppliedFilterChips` tail. */
+  useEffect(() => {
+    const ids = new Set(getAppliedFilterChips(appliedFilters).map((c) => c.id))
+    setAppliedChipOrder((o) => {
+      const pruned = o.filter((id) => ids.has(id))
+      if (pruned.length === o.length && pruned.every((id, i) => id === o[i])) return o
+      return pruned
+    })
+  }, [appliedFilters])
+
   const listings = useMemo(() => getSrpListingsForCity(city), [city])
 
   const youMayAlsoLikeHotspots = useMemo(
@@ -393,12 +472,51 @@ export function SrpPage({
     )
   }, [listings, youMayAlsoLikeHotspots])
 
-  const filtered = useMemo(
+  const filteredStrict = useMemo(
     () => applySrpFilters(listings, appliedFilters),
     [listings, appliedFilters],
   )
 
+  /** With any non-default filters, never show an empty feed — fall back to full city list. */
+  const filtered = useMemo(() => {
+    if (filteredStrict.length > 0) return filteredStrict
+    if (
+      listings.length > 0 &&
+      !areSrpAppliedFiltersEqual(
+        appliedFilters,
+        createDefaultSrpAppliedFilters(),
+      )
+    ) {
+      return listings
+    }
+    return filteredStrict
+  }, [filteredStrict, listings, appliedFilters])
+
   const filterDimCount = countActiveSrpFilterDimensions(appliedFilters)
+
+  const appliedChipCount = useMemo(
+    () => getAppliedFilterChips(appliedFilters).length,
+    [appliedFilters],
+  )
+
+  const orderedAppliedFilterChips = useMemo((): AppliedFilterChip[] => {
+    const chips = getAppliedFilterChips(appliedFilters)
+    if (appliedChipOrder.length === 0) return chips
+    const byId = new Map(chips.map((c) => [c.id, c]))
+    const seen = new Set<string>()
+    const out: AppliedFilterChip[] = []
+    for (const id of appliedChipOrder) {
+      const c = byId.get(id)
+      if (c) {
+        out.push(c)
+        seen.add(id)
+      }
+    }
+    for (const c of chips) {
+      if (!seen.has(c.id)) out.push(c)
+    }
+    return out
+  }, [appliedFilters, appliedChipOrder])
 
   const areasSubsetActive =
     filterHotspot &&
@@ -407,7 +525,18 @@ export function SrpPage({
 
   const hotspotAreasEmpty = filterHotspot && selectedAreaIds.size === 0
 
-  const hasActiveFilters = filterDimCount > 0 || hotspotAreasEmpty
+  /** Purple pill + “Filters (n)” + Clear — any counted dimension, chip strip, or invalid hotspot selection */
+  const filtersPillActive =
+    filterDimCount > 0 || hotspotAreasEmpty || appliedChipCount > 0
+
+  const filtersBadgeCount =
+    filterDimCount > 0
+      ? filterDimCount
+      : appliedChipCount > 0
+        ? appliedChipCount
+        : hotspotAreasEmpty
+          ? 1
+          : 0
 
   const toggleHotspot = () => {
     startTransition(() => {
@@ -439,9 +568,25 @@ export function SrpPage({
 
   const clearAll = () => {
     bumpListRefresh()
+    setAppliedChipOrder([])
     setAppliedFilters(createDefaultSrpAppliedFilters())
     setAreaSheetOpen(false)
   }
+
+  const handleFilterSheetApply = useCallback((next: SrpAppliedFilters) => {
+    refreshListAfterFilterApplyRef.current = true
+    const prev = appliedFiltersRef.current
+    setAppliedChipOrder((order) => mergeAppliedChipOrder(prev, next, order))
+    setAppliedFilters(next)
+  }, [])
+
+  const handleFiltersSheetClose = useCallback(() => {
+    setFiltersSheetOpen(false)
+    if (refreshListAfterFilterApplyRef.current) {
+      refreshListAfterFilterApplyRef.current = false
+      bumpListRefresh('postSheet')
+    }
+  }, [bumpListRefresh])
 
   const applyYouMayAlsoLikeViewAll = (tab: SrpYouMayAlsoLikeTab) => {
     bumpListRefresh()
@@ -594,63 +739,93 @@ export function SrpPage({
             className="flex gap-2 overflow-x-auto px-3 pb-2 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {FILTERS.map((f) =>
-              f.id === 'f' ? (
-                <div
-                  key={f.id}
-                  className={[
-                    'inline-flex shrink-0 items-stretch overflow-hidden rounded-full border',
-                    FILTER_PILL_SHADOW,
-                    filterDimCount > 0
-                      ? 'border-[#5B22DE] bg-[#F3ECFF] text-[#222222]'
-                      : 'border-[#DDDDDD] bg-white text-[#222222]',
-                  ].join(' ')}
-                >
+            <div
+              key={FILTER_MAIN.id}
+              className={[
+                'inline-flex shrink-0 items-stretch overflow-hidden rounded-full border',
+                FILTER_PILL_SHADOW,
+                filtersPillActive
+                  ? FILTER_PILL_ACTIVE_PURPLE
+                  : 'border-[#DDDDDD] bg-white text-[#222222]',
+              ].join(' ')}
+            >
+              <button
+                type="button"
+                onClick={openFiltersSheet}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium leading-4"
+              >
+                <span className="shrink-0" aria-hidden>
+                  <SrpFiltersPillIcon />
+                </span>
+                <span className="whitespace-nowrap">
+                  {filtersBadgeCount > 0
+                    ? `Filters (${filtersBadgeCount})`
+                    : FILTER_MAIN.label}
+                </span>
+              </button>
+              {filtersPillActive ? (
+                <>
+                  <span
+                    className="w-px shrink-0 self-stretch bg-[#C4B5E8]/80"
+                    aria-hidden
+                  />
                   <button
                     type="button"
-                    onClick={openFiltersSheet}
-                    className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium leading-4"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      clearAll()
+                    }}
+                    className="px-2.5 py-2 text-[11px] font-semibold leading-4 text-[#5B22DE] underline underline-offset-2 active:opacity-70"
+                    aria-label="Clear all filters"
                   >
-                    {filterDimCount > 0
-                      ? `Filters (${filterDimCount})`
-                      : f.label}
-                    <ChevronDown className="text-[#6A6A6A]" />
+                    Clear
                   </button>
-                  {hasActiveFilters ? (
-                    <>
-                      <span
-                        className="w-px shrink-0 self-stretch bg-[#C4B5E8]/80"
-                        aria-hidden
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          clearAll()
-                        }}
-                        className="px-2.5 py-2 text-[11px] font-semibold leading-4 text-[#5B22DE] active:opacity-70"
-                      >
-                        Clear filters
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              ) : (
+                </>
+              ) : null}
+            </div>
+
+            {orderedAppliedFilterChips.map((chip) => (
+              <div
+                key={chip.id}
+                className={[
+                  'inline-flex max-w-[220px] shrink-0 items-center gap-0.5 rounded-full border pl-2.5 pr-0.5 text-xs font-semibold leading-4',
+                  FILTER_PILL_SHADOW,
+                  APPLIED_FILTER_CHIP_ACTIVE,
+                ].join(' ')}
+              >
+                <span className="min-w-0 flex-1 truncate py-2 pl-0.5">
+                  {chip.label}
+                </span>
                 <button
-                  key={f.id}
                   type="button"
-                  onClick={openFiltersSheet}
-                  className={[
-                    'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium leading-4',
-                    FILTER_PILL_SHADOW,
-                    'border-[#DDDDDD] bg-white text-[#222222]',
-                  ].join(' ')}
+                  onClick={() => {
+                    setAppliedChipOrder((o) => o.filter((id) => id !== chip.id))
+                    bumpListRefresh()
+                    setAppliedFilters((f) => chip.clear(f))
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[15px] font-light leading-none text-[#5B22DE] active:bg-[#E8DEF9]"
+                  aria-label={`Remove ${chip.label}`}
                 >
-                  {f.label}
-                  <ChevronDown className="text-[#6A6A6A]" />
+                  ×
                 </button>
-              ),
-            )}
+              </div>
+            ))}
+
+            {FILTER_SHEET_SHORTCUTS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={openFiltersSheet}
+                className={[
+                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium leading-4',
+                  FILTER_PILL_SHADOW,
+                  'border-[#DDDDDD] bg-white text-[#222222]',
+                ].join(' ')}
+              >
+                {f.label}
+                <ChevronDown className="text-[#6A6A6A]" />
+              </button>
+            ))}
           </div>
 
           <div
@@ -671,7 +846,7 @@ export function SrpPage({
                   'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium leading-4 transition-colors duration-200',
                   FILTER_PILL_SHADOW,
                   filterHotspot
-                    ? 'border-[#5B22DE] bg-[#F3ECFF] text-[#222222]'
+                    ? FILTER_PILL_ACTIVE_PURPLE
                     : 'border-[#DDDDDD] bg-white text-[#222222]',
                 ].join(' ')}
               >
@@ -694,7 +869,7 @@ export function SrpPage({
                     'inline-flex w-[132px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full border px-3 py-2 text-xs font-medium leading-4 transition-colors duration-200',
                     FILTER_PILL_SHADOW,
                     areasSubsetActive
-                      ? 'border-[#5B22DE] bg-[#F3ECFF] text-[#222222]'
+                      ? FILTER_PILL_ACTIVE_PURPLE
                       : selectedAreaIds.size === 0
                         ? 'border-[#FCA5A5] bg-white text-[#222222]'
                         : 'border-[#DDDDDD] bg-white text-[#222222]',
@@ -702,7 +877,13 @@ export function SrpPage({
                   aria-label="Choose hotspot areas"
                 >
                   All areas
-                  <ChevronDown className="shrink-0 text-[#6A6A6A]" />
+                  <ChevronDown
+                    className={
+                      areasSubsetActive
+                        ? 'shrink-0 text-[#5B22DE]/70'
+                        : 'shrink-0 text-[#6A6A6A]'
+                    }
+                  />
                 </button>
               </div>
             </div>
@@ -713,7 +894,7 @@ export function SrpPage({
                 'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium leading-4 transition-colors',
                 FILTER_PILL_SHADOW,
                 filterUpcoming
-                  ? 'border-[#5B22DE] bg-[#F3ECFF] text-[#222222]'
+                  ? FILTER_PILL_ACTIVE_PURPLE
                   : 'border-[#DDDDDD] bg-white text-[#222222]',
               ].join(' ')}
               aria-label="New projects in Gurgaon"
@@ -832,13 +1013,10 @@ export function SrpPage({
 
       <SrpFiltersSheet
         open={filtersSheetOpen}
-        onClose={() => setFiltersSheetOpen(false)}
+        onClose={handleFiltersSheetClose}
         onCloseMotionStart={() => setFilterChromeActive(false)}
         applied={appliedFilters}
-        onApply={(next) => {
-          setAppliedFilters(next)
-          bumpListRefresh()
-        }}
+        onApply={handleFilterSheetApply}
       />
       </div>
     </div>

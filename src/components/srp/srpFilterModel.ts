@@ -2,6 +2,18 @@ import {
   ALL_HOTSPOT_AREA_IDS,
   isFullHotspotAreaSelection,
 } from '../../data/srpAreasMock'
+import {
+  FILTER_AMENITIES_LONG,
+  FILTER_BHK_OPTIONS,
+  FILTER_CONSTRUCTION_OPTIONS,
+  FILTER_FACING_OPTIONS,
+  FILTER_FURNISHING_OPTIONS,
+  FILTER_LISTED_BY_OPTIONS,
+  FILTER_PHOTOS_OPTIONS,
+  FILTER_PROPERTY_AGE_OPTIONS,
+  FILTER_PROPERTY_TYPE_OPTIONS,
+  FILTER_PURCHASE_TYPE_OPTIONS,
+} from '../../data/srpFiltersMock'
 import type { SrpListing } from '../../data/srpMock'
 
 export type SrpAppliedFilters = {
@@ -229,4 +241,290 @@ export function applySrpFilters(
 
     return true
   })
+}
+
+const BHK_LABEL = Object.fromEntries(
+  FILTER_BHK_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const PROPERTY_TYPE_LABEL = Object.fromEntries(
+  FILTER_PROPERTY_TYPE_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const CONSTRUCTION_LABEL = Object.fromEntries(
+  FILTER_CONSTRUCTION_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const LISTED_LABEL = Object.fromEntries(
+  FILTER_LISTED_BY_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const AMENITY_LABEL = Object.fromEntries(
+  FILTER_AMENITIES_LONG.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const PURCHASE_LABEL = Object.fromEntries(
+  FILTER_PURCHASE_TYPE_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const AGE_LABEL = Object.fromEntries(
+  FILTER_PROPERTY_AGE_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const FURNISH_LABEL = Object.fromEntries(
+  FILTER_FURNISHING_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const FACING_LABEL = Object.fromEntries(
+  FILTER_FACING_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+
+function fmtCr(n: number): string {
+  return n.toFixed(2).replace(/\.?0+$/, '')
+}
+
+function joinOptionLabels(
+  ids: string[],
+  lookup: Record<string, string>,
+  maxShown = 2,
+): string {
+  const labels = ids.map((id) => lookup[id] ?? id)
+  const shown = labels.slice(0, maxShown)
+  const more = labels.length - shown.length
+  let s = shown.join(', ')
+  if (more > 0) s += ` +${more}`
+  return s
+}
+
+export type AppliedFilterChip = {
+  id: string
+  label: string
+  clear: (f: SrpAppliedFilters) => SrpAppliedFilters
+}
+
+/** Removable chips for the SRP filter strip (one row after the main Filters CTA). */
+export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[] {
+  const chips: AppliedFilterChip[] = []
+
+  if (f.useHotspot) {
+    chips.push({
+      id: 'hotspot',
+      label: 'Hotspot',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.useHotspot = false
+        n.hotspotAreaIds = [...ALL_HOTSPOT_AREA_IDS]
+        return n
+      },
+    })
+  }
+
+  if (
+    f.useHotspot &&
+    f.hotspotAreaIds.length > 0 &&
+    !isFullHotspotAreaSelection(new Set(f.hotspotAreaIds))
+  ) {
+    chips.push({
+      id: 'areas',
+      label: `Areas (${f.hotspotAreaIds.length})`,
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.hotspotAreaIds = [...ALL_HOTSPOT_AREA_IDS]
+        return n
+      },
+    })
+  }
+
+  if (f.upcomingOnly) {
+    chips.push({
+      id: 'upcoming',
+      label: 'New projects',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.upcomingOnly = false
+        return n
+      },
+    })
+  }
+
+  const budgetLo = f.budgetMinCr > DEF.budgetMinCr + 0.01
+  const budgetHi = f.budgetMaxCr < DEF.budgetMaxCr - 0.01
+  if (budgetLo || budgetHi) {
+    let label = 'Budget'
+    if (budgetLo && budgetHi) {
+      label = `₹${fmtCr(f.budgetMinCr)}–${fmtCr(f.budgetMaxCr)} Cr`
+    } else if (budgetLo) {
+      label = `Min ₹${fmtCr(f.budgetMinCr)} Cr`
+    } else {
+      label = `Max ₹${fmtCr(f.budgetMaxCr)} Cr`
+    }
+    chips.push({
+      id: 'budget',
+      label,
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.budgetMinCr = DEF.budgetMinCr
+        n.budgetMaxCr = DEF.budgetMaxCr
+        return n
+      },
+    })
+  }
+
+  if (f.bhk.length > 0) {
+    chips.push({
+      id: 'bhk',
+      label: joinOptionLabels([...f.bhk].sort(), BHK_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.bhk = []
+        return n
+      },
+    })
+  }
+
+  if (f.propertyTypes.length > 0) {
+    chips.push({
+      id: 'propertyTypes',
+      label: joinOptionLabels(f.propertyTypes, PROPERTY_TYPE_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.propertyTypes = []
+        return n
+      },
+    })
+  }
+
+  if (!f.upcomingOnly && f.construction.length > 0) {
+    const label = joinOptionLabels([...f.construction].sort(), CONSTRUCTION_LABEL)
+    chips.push({
+      id: 'construction',
+      label: label || 'Status',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.construction = []
+        return n
+      },
+    })
+  }
+
+  if (f.listedBy.length > 0) {
+    chips.push({
+      id: 'listedBy',
+      label: joinOptionLabels(f.listedBy, LISTED_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.listedBy = []
+        return n
+      },
+    })
+  }
+
+  if (f.amenities.length > 0) {
+    chips.push({
+      id: 'amenities',
+      label:
+        f.amenities.length === 1
+          ? AMENITY_LABEL[f.amenities[0]!] ?? 'Amenities'
+          : `Amenities (${f.amenities.length})`,
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.amenities = []
+        return n
+      },
+    })
+  }
+
+  if (f.areaSqFtMin > DEF.areaSqFtMin || f.areaSqFtMax < DEF.areaSqFtMax) {
+    chips.push({
+      id: 'builtUp',
+      label: `${f.areaSqFtMin.toLocaleString()}–${f.areaSqFtMax.toLocaleString()} sq.ft.`,
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.areaSqFtMin = DEF.areaSqFtMin
+        n.areaSqFtMax = DEF.areaSqFtMax
+        return n
+      },
+    })
+  }
+
+  if (f.purchaseTypes.length > 0) {
+    chips.push({
+      id: 'purchaseTypes',
+      label: joinOptionLabels(f.purchaseTypes, PURCHASE_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.purchaseTypes = []
+        return n
+      },
+    })
+  }
+
+  if (f.propertyAges.length > 0) {
+    chips.push({
+      id: 'propertyAges',
+      label: joinOptionLabels(f.propertyAges, AGE_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.propertyAges = []
+        return n
+      },
+    })
+  }
+
+  if (f.developers.length > 0) {
+    const shown = f.developers.slice(0, 2).join(', ')
+    const more = f.developers.length - 2
+    chips.push({
+      id: 'developers',
+      label: more > 0 ? `${shown} +${more}` : shown,
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.developers = []
+        return n
+      },
+    })
+  }
+
+  if (f.furnishing.length > 0) {
+    chips.push({
+      id: 'furnishing',
+      label: joinOptionLabels(f.furnishing, FURNISH_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.furnishing = []
+        return n
+      },
+    })
+  }
+
+  if (f.facing.length > 0) {
+    chips.push({
+      id: 'facing',
+      label: joinOptionLabels(f.facing, FACING_LABEL),
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.facing = []
+        return n
+      },
+    })
+  }
+
+  if (f.minImageCount > 0) {
+    const opt = FILTER_PHOTOS_OPTIONS.find((o) => o.id === f.minImageCount)
+    chips.push({
+      id: 'photos',
+      label: opt?.label ?? `${f.minImageCount}+ photos`,
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.minImageCount = DEF.minImageCount
+        return n
+      },
+    })
+  }
+
+  if (f.reraOnly) {
+    chips.push({
+      id: 'reraOnly',
+      label: 'RERA only',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.reraOnly = false
+        return n
+      },
+    })
+  }
+
+  return chips
 }

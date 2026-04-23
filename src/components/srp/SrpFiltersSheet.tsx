@@ -58,19 +58,39 @@ const FS = {
   applyText: '#454545',
 }
 
-function CloseIcon() {
+function FilterScreenBackIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#222222"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  )
+}
+
+/** Muted magnifier — matches low-emphasis chrome on SRP search, not the purple bar icon */
+function FilterSheetSearchIcon() {
   return (
     <svg
       width="18"
       height="18"
       viewBox="0 0 24 24"
       fill="none"
-      stroke={FS.muted}
-      strokeWidth="2"
+      stroke="currentColor"
+      strokeWidth="1.85"
       strokeLinecap="round"
       aria-hidden
     >
-      <path d="M18 6L6 18M6 6l12 12" />
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-4.3-4.3" />
     </svg>
   )
 }
@@ -547,8 +567,401 @@ function BudgetFilterPanel({
 
       <BudgetVerticalRange minCr={minCr} maxCr={maxCr} onChange={onChange} />
 
-      <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch pt-1">
+      <p className="mb-2 mt-2 w-full self-stretch text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-[#878787]">
+        Popular selections
+      </p>
+      <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch">
         {BUDGET_QUICK_CHIPS.map((chip) => {
+          const selected = selectedChipIds.has(chip.id)
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => toggleChip(chip)}
+              className={[
+                'min-w-0 rounded-2xl border px-4 py-3.5 text-left text-[12px] font-medium leading-tight transition-all duration-200 ease-out active:opacity-90',
+                selected
+                  ? 'border-black bg-[#F7F7F7] text-[#1a1a1a]'
+                  : 'border-[#D6D6D6] bg-white text-[#6B6B6B] active:bg-[#F5F5F5]',
+              ].join(' ')}
+            >
+              {chip.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const SQFT_LO = 0
+const SQFT_HI = 12000
+const SQFT_GAP = 50
+
+const SQFT_QUICK_CHIPS: readonly {
+  id: string
+  label: string
+  min: number
+  max: number
+}[] = [
+  { id: 'u500', label: 'Under 500', min: 0, max: 500 },
+  { id: '500-1k', label: '500 – 1,000', min: 500, max: 1000 },
+  { id: '1k-15', label: '1,000 – 1,500', min: 1000, max: 1500 },
+  { id: '15-2k', label: '1,500 – 2,000', min: 1500, max: 2000 },
+  { id: '2k-3k', label: '2,000 – 3,000', min: 2000, max: 3000 },
+  { id: '3kp', label: '3,000+', min: 3000, max: 12000 },
+]
+
+function formatSqftThumbLabel(sq: number): string {
+  return sq.toLocaleString()
+}
+
+function formatSqftRangeLine(minSq: number, maxSq: number): string {
+  return `${formatSqftThumbLabel(minSq)} – ${formatSqftThumbLabel(maxSq)} sq.ft.`
+}
+
+function areaRangesClose(
+  minA: number,
+  maxA: number,
+  minB: number,
+  maxB: number,
+  eps = 45,
+): boolean {
+  return Math.abs(minA - minB) < eps && Math.abs(maxA - maxB) < eps
+}
+
+function areaRangeFromChipIds(
+  ids: Set<string>,
+): { min: number; max: number } | null {
+  if (ids.size === 0) return null
+  const chips = SQFT_QUICK_CHIPS.filter((c) => ids.has(c.id))
+  if (chips.length === 0) return null
+  return {
+    min: Math.min(...chips.map((c) => c.min)),
+    max: Math.max(...chips.map((c) => c.max)),
+  }
+}
+
+function valueFromTrackClientYSqft(clientY: number, rect: DOMRect): number {
+  const fromBottom = rect.bottom - clientY
+  const ratio = Math.min(1, Math.max(0, fromBottom / rect.height))
+  return ratio * SQFT_HI
+}
+
+function snapSqftToStep(v: number): number {
+  return (
+    Math.round(Math.min(SQFT_HI, Math.max(SQFT_LO, v)) / 50) * 50
+  )
+}
+
+function snapMinSqFromTrack(v: number, maxSq: number): number {
+  const s = snapSqftToStep(v)
+  const limit = maxSq - SQFT_GAP
+  if (s <= limit) return Math.max(SQFT_LO, s)
+  const steps = Math.floor(limit / 50) * 50
+  return Math.max(SQFT_LO, steps)
+}
+
+function snapMaxSqFromTrack(v: number, minSq: number): number {
+  const s = snapSqftToStep(v)
+  const limit = minSq + SQFT_GAP
+  if (s >= limit) return Math.min(SQFT_HI, s)
+  const steps = Math.ceil(limit / 50) * 50
+  return Math.min(SQFT_HI, steps)
+}
+
+/** Built-up sq.ft. — same vertical track + thumb pattern as budget */
+function AreaVerticalRange({
+  minSq,
+  maxSq,
+  onChange,
+}: {
+  minSq: number
+  maxSq: number
+  onChange: (min: number, max: number) => void
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<'min' | 'max' | null>(null)
+
+  const applyMin = useCallback(
+    (v: number) => {
+      const next = snapMinSqFromTrack(v, maxSq)
+      onChange(Math.max(SQFT_LO, next), maxSq)
+    },
+    [maxSq, onChange],
+  )
+
+  const applyMax = useCallback(
+    (v: number) => {
+      const next = snapMaxSqFromTrack(v, minSq)
+      onChange(minSq, Math.min(SQFT_HI, next))
+    },
+    [minSq, onChange],
+  )
+
+  const pointerMove = useCallback(
+    (e: PointerEvent) => {
+      const el = trackRef.current
+      const role = dragRef.current
+      if (!el || !role) return
+      const rect = el.getBoundingClientRect()
+      const v = valueFromTrackClientYSqft(e.clientY, rect)
+      if (role === 'min') {
+        const next = snapMinSqFromTrack(v, maxSq)
+        if (next !== minSq) {
+          onChange(Math.max(SQFT_LO, next), maxSq)
+        }
+      } else {
+        const next = snapMaxSqFromTrack(v, minSq)
+        if (next !== maxSq) {
+          onChange(minSq, Math.min(SQFT_HI, next))
+        }
+      }
+    },
+    [maxSq, minSq, onChange],
+  )
+
+  const pointerUp = useCallback(() => {
+    dragRef.current = null
+    window.removeEventListener('pointermove', pointerMove)
+    window.removeEventListener('pointerup', pointerUp)
+    window.removeEventListener('pointercancel', pointerUp)
+  }, [pointerMove])
+
+  const startDrag = (role: 'min' | 'max', e: React.PointerEvent) => {
+    e.preventDefault()
+    dragRef.current = role
+    e.currentTarget.setPointerCapture(e.pointerId)
+    window.addEventListener('pointermove', pointerMove)
+    window.addEventListener('pointerup', pointerUp)
+    window.addEventListener('pointercancel', pointerUp)
+  }
+
+  const trackBackgroundPointerDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    const el = trackRef.current
+    if (!el || !el.contains(e.target as Node)) return
+    const rect = el.getBoundingClientRect()
+    const v = valueFromTrackClientYSqft(e.clientY, rect)
+    const dMin = Math.abs(v - minSq)
+    const dMax = Math.abs(v - maxSq)
+    if (dMin <= dMax) {
+      applyMin(v)
+    } else {
+      applyMax(v)
+    }
+  }
+
+  const thumbBottomPx = (sq: number) =>
+    (sq / SQFT_HI) * BUDGET_TRACK_H - BUDGET_THUMB_PX / 2
+
+  const purpleBottom = (minSq / SQFT_HI) * BUDGET_TRACK_H
+  const purpleHeight = ((maxSq - minSq) / SQFT_HI) * BUDGET_TRACK_H
+
+  const thumbStyle = (sq: number) => ({
+    left: '50%',
+    bottom: `${thumbBottomPx(sq)}px`,
+    width: BUDGET_THUMB_PX,
+    height: BUDGET_THUMB_PX,
+    transform: 'translateX(-50%)',
+  })
+
+  const thumbCenterBottomPx = (sq: number) =>
+    (sq / SQFT_HI) * BUDGET_TRACK_H
+
+  const stepSqftPillClass =
+    'pointer-events-none absolute right-0 z-[1] truncate rounded-lg bg-[#5B22DE] px-2 py-1.5 text-center text-[10px] font-semibold leading-tight text-white'
+
+  return (
+    <div className="flex w-full flex-col items-center gap-3 px-2 py-4">
+      <p className="w-full text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
+        Maximum built-up
+      </p>
+
+      <div
+        className="relative mx-auto shrink-0"
+        style={{
+          height: BUDGET_TRACK_H,
+          width: BUDGET_SLIDER_ROW_W,
+          transform: `translateX(${BUDGET_SLIDER_ROW_ALIGN_SHIFT_PX}px)`,
+        }}
+      >
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 z-[1]"
+          style={{ width: BUDGET_THUMB_LABEL_COL_W }}
+          aria-hidden
+        >
+          <div
+            className={stepSqftPillClass}
+            style={{
+              bottom: `${thumbCenterBottomPx(maxSq)}px`,
+              transform: 'translateY(50%)',
+              zIndex: 2,
+              maxWidth: BUDGET_THUMB_LABEL_COL_W,
+            }}
+          >
+            {formatSqftThumbLabel(maxSq)}
+          </div>
+          <div
+            className={stepSqftPillClass}
+            style={{
+              bottom: `${thumbCenterBottomPx(minSq)}px`,
+              transform: 'translateY(50%)',
+              zIndex: 3,
+              maxWidth: BUDGET_THUMB_LABEL_COL_W,
+            }}
+          >
+            {formatSqftThumbLabel(minSq)}
+          </div>
+        </div>
+
+        <div
+          className="absolute top-0 h-full"
+          style={{
+            left: BUDGET_THUMB_LABEL_COL_W,
+            width: BUDGET_BAR_COL_W,
+          }}
+        >
+          <div
+            ref={trackRef}
+            role="presentation"
+            className="touch-none absolute inset-y-0 left-1/2 z-0 w-10 -translate-x-1/2 cursor-pointer"
+            style={{ height: BUDGET_TRACK_H }}
+            onPointerDown={trackBackgroundPointerDown}
+          >
+            <div
+              className="pointer-events-none absolute left-1/2 top-0 bottom-0 -translate-x-1/2 rounded-full"
+              style={{
+                width: BUDGET_BAR_WIDTH_PX,
+                backgroundColor: BUDGET_BAR_GREY,
+              }}
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-full bg-[#5B22DE]"
+              style={{
+                width: BUDGET_BAR_WIDTH_PX,
+                bottom: `${purpleBottom}px`,
+                height: `${Math.max(0, purpleHeight)}px`,
+              }}
+              aria-hidden
+            />
+          </div>
+
+          <button
+            type="button"
+            aria-label="Minimum built-up area"
+            aria-valuenow={minSq}
+            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] shadow-[0_2px_6px_rgba(0,0,0,0.1),0_4px_14px_-2px_rgba(91,34,222,0.28)] outline-none active:cursor-grabbing"
+            style={thumbStyle(minSq)}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              startDrag('min', e)
+            }}
+          />
+          <button
+            type="button"
+            aria-label="Maximum built-up area"
+            aria-valuenow={maxSq}
+            className="touch-none absolute z-[2] box-border cursor-grab rounded-full border-2 border-white bg-[#5B22DE] shadow-[0_2px_6px_rgba(0,0,0,0.1),0_4px_14px_-2px_rgba(91,34,222,0.28)] outline-none active:cursor-grabbing"
+            style={thumbStyle(maxSq)}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              startDrag('max', e)
+            }}
+          />
+        </div>
+
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 flex flex-col justify-between py-1"
+          style={{ width: BUDGET_STEPPER_COL_W }}
+          aria-hidden
+        >
+          {Array.from({ length: BUDGET_BAR_STEPPER_COUNT }, (_, i) => (
+            <span
+              key={i}
+              className="mx-auto shrink-0 rounded-full"
+              style={{
+                width: 8,
+                height: 5,
+                backgroundColor: BUDGET_BAR_GREY,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <p className="w-full text-center text-[11px] font-normal leading-snug text-[#9CA3AF]">
+        Minimum built-up
+      </p>
+    </div>
+  )
+}
+
+/** Built-up area — same layout as budget: summary line, vertical range, quick chips */
+function AreaFilterPanel({
+  minSq,
+  maxSq,
+  onChange,
+}: {
+  minSq: number
+  maxSq: number
+  onChange: (min: number, max: number) => void
+}) {
+  const defaultArea = useMemo(() => {
+    const d = createDefaultSrpAppliedFilters()
+    return { min: d.areaSqFtMin, max: d.areaSqFtMax }
+  }, [])
+
+  const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  useEffect(() => {
+    setSelectedChipIds((prev) => {
+      if (prev.size === 0) return prev
+      const fromChips = areaRangeFromChipIds(prev)
+      if (!fromChips) return new Set()
+      if (!areaRangesClose(fromChips.min, fromChips.max, minSq, maxSq)) {
+        return new Set()
+      }
+      return prev
+    })
+  }, [minSq, maxSq])
+
+  const toggleChip = (chip: (typeof SQFT_QUICK_CHIPS)[number]) => {
+    setSelectedChipIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(chip.id)) next.delete(chip.id)
+      else next.add(chip.id)
+      const r = areaRangeFromChipIds(next)
+      if (next.size === 0) {
+        onChange(defaultArea.min, defaultArea.max)
+      } else if (r) {
+        onChange(r.min, r.max)
+      }
+      return next
+    })
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 bg-white">
+      <div className="w-full self-stretch text-left">
+        <p className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
+          Built-up range
+        </p>
+        <p className="mt-1 text-[16px] font-medium leading-snug tracking-tight text-[#5B22DE]">
+          {formatSqftRangeLine(minSq, maxSq)}
+        </p>
+      </div>
+
+      <AreaVerticalRange minSq={minSq} maxSq={maxSq} onChange={onChange} />
+
+      <p className="mb-2 mt-2 w-full self-stretch text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-[#878787]">
+        Popular range
+      </p>
+      <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch">
+        {SQFT_QUICK_CHIPS.map((chip) => {
           const selected = selectedChipIds.has(chip.id)
           return (
             <button
@@ -757,100 +1170,6 @@ function ExpandableCheckboxColumn({
   )
 }
 
-function DualSqftSliders({
-  minSq,
-  maxSq,
-  onChange,
-}: {
-  minSq: number
-  maxSq: number
-  onChange: (min: number, max: number) => void
-}) {
-  const lo = 0
-  const hi = 12000
-  const gap = 50
-
-  const setMin = (v: number) => {
-    const next = Math.min(v, maxSq - gap)
-    onChange(Math.max(lo, Math.round(next / 50) * 50), maxSq)
-  }
-  const setMax = (v: number) => {
-    const next = Math.max(v, minSq + gap)
-    onChange(minSq, Math.min(hi, Math.round(next / 50) * 50))
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <div className="mb-2 flex justify-between text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
-          <span>Min</span>
-          <span className="tabular-nums text-[#111827]">
-            {minSq.toLocaleString()} sq.ft.
-          </span>
-        </div>
-        <input
-          type="range"
-          min={lo}
-          max={hi}
-          step={50}
-          value={minSq}
-          onChange={(e) => setMin(parseInt(e.target.value, 10))}
-          className="srp-fs-range h-3 w-full"
-          aria-label="Minimum built-up area"
-        />
-      </div>
-      <div>
-        <div className="mb-2 flex justify-between text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
-          <span>Max</span>
-          <span className="tabular-nums text-[#111827]">
-            {maxSq.toLocaleString()} sq.ft.
-          </span>
-        </div>
-        <input
-          type="range"
-          min={lo}
-          max={hi}
-          step={50}
-          value={maxSq}
-          onChange={(e) => setMax(parseInt(e.target.value, 10))}
-          className="srp-fs-range h-3 w-full"
-          aria-label="Maximum built-up area"
-        />
-      </div>
-      <div className="flex gap-3">
-        <label className="flex flex-1 flex-col gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
-            Min (sq.ft.)
-          </span>
-          <input
-            type="number"
-            min={lo}
-            max={hi}
-            step={50}
-            value={minSq}
-            onChange={(e) => setMin(parseInt(e.target.value, 10) || lo)}
-            className="rounded-lg border border-[#E0E0E0] bg-white px-3 py-2.5 text-[15px] font-medium text-[#212121] outline-none focus:border-[#5B22DE]"
-          />
-        </label>
-        <label className="flex flex-1 flex-col gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">
-            Max (sq.ft.)
-          </span>
-          <input
-            type="number"
-            min={lo}
-            max={hi}
-            step={50}
-            value={maxSq}
-            onChange={(e) => setMax(parseInt(e.target.value, 10) || hi)}
-            className="rounded-lg border border-[#E0E0E0] bg-white px-3 py-2.5 text-[15px] font-medium text-[#212121] outline-none focus:border-[#5B22DE]"
-          />
-        </label>
-      </div>
-    </div>
-  )
-}
-
 /** Left category rail only — very light tap when switching category */
 function filterLeftCategoryHaptic() {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -865,9 +1184,11 @@ function filterLeftCategoryHaptic() {
 function CategoryNav({
   active,
   onSelect,
+  visibleIds,
 }: {
   active: FilterCategoryId
   onSelect: (id: FilterCategoryId) => void
+  visibleIds: readonly FilterCategoryId[]
 }) {
   return (
     <nav
@@ -875,40 +1196,46 @@ function CategoryNav({
       style={{ WebkitOverflowScrolling: 'touch' }}
       aria-label="Filter categories"
     >
-      {FILTER_CATEGORY_IDS.map((id) => {
-        const isActive = id === active
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => {
-              if (id !== active) filterLeftCategoryHaptic()
-              onSelect(id)
-            }}
-            className={[
-              'flex w-full items-stretch bg-white text-left text-[11px] leading-snug transition-[background] duration-200',
-              isActive
-                ? 'font-medium text-[#2d1f4e] [background-image:linear-gradient(90deg,#f3ecff_0%,#faf7ff_42%,#ffffff_100%)]'
-                : 'font-normal text-[#212121] active:bg-[#FCFCFC]',
-            ].join(' ')}
-          >
-            {isActive ? (
-              <span
-                className="w-[5px] shrink-0 self-stretch rounded-r-[10px] bg-[#5B22DE]"
-                aria-hidden
-              />
-            ) : null}
-            <span
+      {visibleIds.length === 0 ? (
+        <p className="px-2 py-4 text-center text-[11px] leading-snug text-[#B0B0B0]">
+          No categories match
+        </p>
+      ) : (
+        visibleIds.map((id) => {
+          const isActive = id === active
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                if (id !== active) filterLeftCategoryHaptic()
+                onSelect(id)
+              }}
               className={[
-                'min-w-0 flex-1 py-3.5 pr-2 text-left',
-                isActive ? 'pl-1.5' : 'pl-2',
+                'flex w-full items-stretch bg-white text-left text-[11px] leading-snug transition-[background] duration-200',
+                isActive
+                  ? 'font-medium text-[#2d1f4e] [background-image:linear-gradient(90deg,#f3ecff_0%,#faf7ff_42%,#ffffff_100%)]'
+                  : 'font-normal text-[#212121] active:bg-[#FCFCFC]',
               ].join(' ')}
             >
-              {FILTER_CATEGORY_LABELS[id]}
-            </span>
-          </button>
-        )
-      })}
+              {isActive ? (
+                <span
+                  className="w-[5px] shrink-0 self-stretch rounded-r-[10px] bg-[#5B22DE]"
+                  aria-hidden
+                />
+              ) : null}
+              <span
+                className={[
+                  'min-w-0 flex-1 py-3.5 pr-2 text-left',
+                  isActive ? 'pl-1.5' : 'pl-2',
+                ].join(' ')}
+              >
+                {FILTER_CATEGORY_LABELS[id]}
+              </span>
+            </button>
+          )
+        })
+      )}
     </nav>
   )
 }
@@ -1051,7 +1378,7 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="area" />
         <div className="mt-2">
-          <DualSqftSliders
+          <AreaFilterPanel
             minSq={draft.areaSqFtMin}
             maxSq={draft.areaSqFtMax}
             onChange={(areaSqFtMin, areaSqFtMax) =>
@@ -1268,9 +1595,18 @@ export function SrpFiltersSheet({
   onCloseMotionStart,
 }: SrpFiltersSheetProps) {
   const [active, setActive] = useState<FilterCategoryId>('budget')
+  const [categoryQuery, setCategoryQuery] = useState('')
   const [draft, setDraft] = useState<SrpAppliedFilters>(() =>
     cloneSrpAppliedFilters(applied),
   )
+
+  const visibleCategoryIds = useMemo(() => {
+    const q = categoryQuery.trim().toLowerCase()
+    if (!q) return FILTER_CATEGORY_IDS
+    return FILTER_CATEGORY_IDS.filter((id) =>
+      FILTER_CATEGORY_LABELS[id].toLowerCase().includes(q),
+    )
+  }, [categoryQuery])
   /** Keep portal mounted while exit animation runs */
   const [present, setPresent] = useState(open)
   /** Sheet at rest position (open) vs off-screen (closed) */
@@ -1345,8 +1681,16 @@ export function SrpFiltersSheet({
     if (open) {
       setDraft(cloneSrpAppliedFilters(applied))
       setActive('budget')
+      setCategoryQuery('')
     }
   }, [open, applied])
+
+  useEffect(() => {
+    if (visibleCategoryIds.length === 0) return
+    if (!visibleCategoryIds.includes(active)) {
+      setActive(visibleCategoryIds[0]!)
+    }
+  }, [visibleCategoryIds, active])
 
   useEffect(() => {
     if (!present) return
@@ -1408,101 +1752,135 @@ export function SrpFiltersSheet({
   return createPortal(
     <div
       className={[
-        'fixed inset-0 z-[110] flex flex-col transition-[background-color,opacity] duration-200 ease-out',
-        closing
-          ? 'pointer-events-none bg-black/0 motion-reduce:bg-black/0'
-          : 'bg-black/40 motion-reduce:bg-black/40',
+        'fixed inset-0 z-[110]',
+        closing ? 'pointer-events-none' : '',
       ].join(' ')}
       role="presentation"
     >
-      {/* Top ~20%+ : tap dimmed area to dismiss; flex-1 fills space above sheet */}
       <button
         type="button"
-        className="min-h-[20dvh] w-full flex-1 shrink-0 cursor-pointer bg-transparent"
+        className={[
+          'absolute inset-0 transition-[background-color,opacity] duration-200 ease-out',
+          closing ? 'bg-black/0' : 'bg-black/40 motion-reduce:bg-black/40',
+        ].join(' ')}
         aria-label="Close filters"
         onClick={closeAnimated}
         tabIndex={closing ? -1 : 0}
       />
 
-      <div
-        className="flex h-[80dvh] max-h-[80dvh] min-h-0 w-full max-w-[430px] flex-col self-center overflow-hidden rounded-t-[20px] bg-white shadow-[0_-12px_48px_rgba(0,0,0,0.2)] will-change-transform"
-        style={{
-          ...(motionReady
-            ? {
-                transitionProperty: 'transform',
-                transitionDuration: `${SHEET_TRANSITION_MS}ms`,
-                transitionTimingFunction:
-                  'cubic-bezier(0.08, 0.78, 0.12, 0.99)',
-              }
-            : { transition: 'none' }),
-          transform: entered ? 'translate3d(0,0,0)' : 'translate3d(0,100%,0)',
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="srp-filters-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header
-          className="flex shrink-0 items-center justify-between border-b border-[#E8E8E8] px-4 pb-3 pt-3"
-        >
-          <h1
-            id="srp-filters-title"
-            className="text-[18px] font-bold tracking-tight text-[#212121]"
-          >
-            Filter
-          </h1>
-          <button
-            type="button"
-            onClick={closeAnimated}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-transparent active:opacity-55"
-            aria-label="Close filters"
-          >
-            <CloseIcon />
-          </button>
-        </header>
-
-        <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
-          <CategoryNav active={active} onSelect={setActive} />
+      <div className="pointer-events-none absolute inset-0 flex justify-center">
+        <div className="relative h-dvh w-full max-w-[430px] overflow-hidden">
           <div
-            className="srp-filter-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            className="pointer-events-auto absolute inset-0 flex flex-col bg-white shadow-[-8px_0_32px_rgba(0,0,0,0.12)] will-change-transform"
+            style={{
+              ...(motionReady
+                ? {
+                    transitionProperty: 'transform',
+                    transitionDuration: `${SHEET_TRANSITION_MS}ms`,
+                    transitionTimingFunction:
+                      'cubic-bezier(0.08, 0.78, 0.12, 0.99)',
+                  }
+                : { transition: 'none' }),
+              transform: entered
+                ? 'translate3d(0,0,0)'
+                : 'translate3d(100%,0,0)',
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="srp-filters-title"
+            onClick={(e) => e.stopPropagation()}
           >
-            <RightPanel active={active} draft={draft} setDraft={setDraft} />
+            <header
+              className="flex shrink-0 items-center gap-2 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
+              style={{
+                paddingTop: 'max(10px, env(safe-area-inset-top, 0px))',
+              }}
+            >
+              <div className="flex min-w-0 shrink-0 items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={closeAnimated}
+                  className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full active:bg-black/[0.05]"
+                  aria-label="Back"
+                >
+                  <FilterScreenBackIcon />
+                </button>
+                <h1
+                  id="srp-filters-title"
+                  className="text-[18px] font-bold tracking-tight text-[#212121]"
+                >
+                  Filter
+                </h1>
+              </div>
+
+              <div className="mx-1 flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-[#EFEFEF] bg-[#FAFAFA] px-2.5 py-2 outline-none focus-within:border-[#E6E6E6]">
+                <span
+                  className="shrink-0 text-[#B8B8B8]"
+                  aria-hidden
+                >
+                  <FilterSheetSearchIcon />
+                </span>
+                <input
+                  type="search"
+                  value={categoryQuery}
+                  onChange={(e) => setCategoryQuery(e.target.value)}
+                  placeholder="Search"
+                  enterKeyHint="search"
+                  className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-[15px] font-normal leading-normal text-[#555555] placeholder:text-[#BDBDBD] outline-none focus:ring-0"
+                  aria-label="Search filter categories"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={clearAll}
+                className="shrink-0 px-1 py-2 text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
+              >
+                Clear all
+              </button>
+            </header>
+
+            <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
+              <CategoryNav
+                active={active}
+                onSelect={setActive}
+                visibleIds={visibleCategoryIds}
+              />
+              <div
+                className="srp-filter-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
+                <RightPanel active={active} draft={draft} setDraft={setDraft} />
+              </div>
+            </div>
+
+            <footer
+              className="relative z-[1] shrink-0 border-t border-[#E8E8E8] bg-white px-4 pt-3 shadow-[0_-2px_7px_-1px_rgba(0,0,0,0.075)]"
+              style={{
+                paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
+              }}
+            >
+              <button
+                type="button"
+                onClick={apply}
+                disabled={!applyCtaActive}
+                className={[
+                  'w-full rounded-[14px] py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
+                  applyCtaActive
+                    ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
+                    : 'cursor-not-allowed text-[#454545] opacity-80',
+                ].join(' ')}
+                style={
+                  applyCtaActive
+                    ? undefined
+                    : { backgroundColor: FS.applyBg, boxShadow: 'none' }
+                }
+              >
+                Apply
+              </button>
+            </footer>
           </div>
         </div>
-
-        <footer
-          className="relative z-[1] flex shrink-0 items-center justify-between gap-4 border-t border-[#E8E8E8] bg-white px-4 pt-3 shadow-[0_-2px_7px_-1px_rgba(0,0,0,0.075)]"
-          style={{
-            paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
-          }}
-        >
-          <button
-            type="button"
-            onClick={clearAll}
-            className="shrink-0 py-2 text-[14px] font-medium text-[#878787] active:opacity-70"
-          >
-            Clear Filters
-          </button>
-          <button
-            type="button"
-            onClick={apply}
-            disabled={!applyCtaActive}
-            className={[
-              'min-w-[220px] shrink-0 rounded-[14px] px-16 py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
-              applyCtaActive
-                ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
-                : 'cursor-not-allowed text-[#454545] opacity-80',
-            ].join(' ')}
-            style={
-              applyCtaActive
-                ? undefined
-                : { backgroundColor: FS.applyBg, boxShadow: 'none' }
-            }
-          >
-            Apply
-          </button>
-        </footer>
       </div>
     </div>,
     document.body,
