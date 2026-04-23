@@ -16,6 +16,21 @@ import {
 } from '../../data/srpFiltersMock'
 import type { SrpListing } from '../../data/srpMock'
 
+export type SrpConstructionStatusId =
+  (typeof FILTER_CONSTRUCTION_OPTIONS)[number]['id']
+
+/** Budget slider / defaults: ₹10L (floor) … ₹5Cr (ceiling). Values in crore. */
+export const SRP_BUDGET_MIN_CR = 0.1
+export const SRP_BUDGET_MAX_CR = 5
+
+/** Ascending snap stops: 10L steps under ₹1Cr, then ₹0.5Cr steps to ₹5Cr. */
+export const SRP_BUDGET_SNAP_STEPS_CR: readonly number[] = [
+  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
+]
+
+/** Photos vs video vs both — empty string means no filter. */
+export type SrpMediaPreference = '' | 'photos' | 'videos' | 'both'
+
 export type SrpAppliedFilters = {
   useHotspot: boolean
   upcomingOnly: boolean
@@ -24,7 +39,7 @@ export type SrpAppliedFilters = {
   budgetMaxCr: number
   bhk: string[]
   propertyTypes: string[]
-  construction: ('ready' | 'under_construction')[]
+  construction: SrpConstructionStatusId[]
   listedBy: string[]
   amenities: string[]
   areaSqFtMin: number
@@ -34,7 +49,7 @@ export type SrpAppliedFilters = {
   developers: string[]
   furnishing: string[]
   facing: string[]
-  minImageCount: number
+  mediaPreference: SrpMediaPreference
   reraOnly: boolean
 }
 
@@ -43,8 +58,8 @@ export function createDefaultSrpAppliedFilters(): SrpAppliedFilters {
     useHotspot: false,
     upcomingOnly: false,
     hotspotAreaIds: [...ALL_HOTSPOT_AREA_IDS],
-    budgetMinCr: 0.05,
-    budgetMaxCr: 30,
+    budgetMinCr: SRP_BUDGET_MIN_CR,
+    budgetMaxCr: SRP_BUDGET_MAX_CR,
     bhk: [],
     propertyTypes: [],
     construction: [],
@@ -57,7 +72,7 @@ export function createDefaultSrpAppliedFilters(): SrpAppliedFilters {
     developers: [],
     furnishing: [],
     facing: [],
-    minImageCount: 0,
+    mediaPreference: '',
     reraOnly: false,
   }
 }
@@ -89,8 +104,8 @@ function sameSortedStrings(a: string[], b: string[]): boolean {
 }
 
 function sameSortedConstruction(
-  a: ('ready' | 'under_construction')[],
-  b: ('ready' | 'under_construction')[],
+  a: SrpConstructionStatusId[],
+  b: SrpConstructionStatusId[],
 ): boolean {
   if (a.length !== b.length) return false
   const sa = [...a].sort()
@@ -120,36 +135,53 @@ export function areSrpAppliedFiltersEqual(
     sameSortedStrings(a.developers, b.developers) &&
     sameSortedStrings(a.furnishing, b.furnishing) &&
     sameSortedStrings(a.facing, b.facing) &&
-    a.minImageCount === b.minImageCount &&
+    a.mediaPreference === b.mediaPreference &&
     a.reraOnly === b.reraOnly
   )
 }
 
 function bhkKeyFromConfiguration(cfg: string): string {
   if (/studio/i.test(cfg)) return 'studio'
+  if (/\b1\s*RK\b/i.test(cfg) || /\b1RK\b/i.test(cfg)) return '1rk'
   const m = cfg.match(/(\d+(?:\.\d+)?)\s*BHK/i)
   if (!m) return ''
   const n = parseFloat(m[1]!)
   if (Number.isNaN(n)) return ''
   if (n >= 4) return '4+'
-  if (n === 1.5) return '1.5'
-  if (n === 2.5) return '2.5'
-  if (n === 3.5) return '3.5'
+  /* No .5 BHK filter buckets — map fractional configs to the lower whole BHK. */
   return String(Math.floor(n))
 }
 
+/** Matches `FILTER_PROPERTY_TYPE_OPTIONS` ids. */
 function propertyTypeFromConfiguration(cfg: string): string {
-  if (/villa/i.test(cfg)) return 'Villa'
-  if (/duplex/i.test(cfg)) return 'Duplex'
-  if (/studio/i.test(cfg)) return 'Studio'
-  return 'Apartment'
+  const s = cfg.toLowerCase()
+  if (
+    /independent\s+builder\s+floor/i.test(cfg) ||
+    (/\bbuilder\s+floor\b/i.test(cfg) && /independent/i.test(cfg))
+  ) {
+    return 'independent_builder_floor'
+  }
+  if (/\bindependent\s+house\b/i.test(cfg)) return 'independent_house'
+  if (/penthouse/i.test(cfg)) return 'penthouse'
+  if (/duplex/i.test(cfg)) return 'duplex'
+  if (/villa/i.test(cfg)) return 'villa'
+  if (/\bplot\b|residential\s+land|land\s+parcel/i.test(s)) return 'plot'
+  /* Studio / RK / flat / apartment-style configs */
+  if (
+    /apartment|apartments|\bflat\b|studio|\brk\b/i.test(cfg)
+  ) {
+    return 'apartments'
+  }
+  return 'apartments'
 }
 
 function listedByKey(role: string): string {
   const r = role.toLowerCase()
-  if (r.includes('dealer')) return 'dealer'
+  if (r.includes('featured')) return 'featured_agent'
+  if (r.includes('developer')) return 'developer'
   if (r.includes('owner')) return 'owner'
-  return 'other'
+  if (r.includes('agent') || r.includes('dealer')) return 'agent'
+  return 'owner'
 }
 
 /** How many filter dimensions differ from defaults (for chip badge). */
@@ -168,12 +200,12 @@ export function countActiveSrpFilterDimensions(f: SrpAppliedFilters): number {
   if (f.budgetMaxCr < DEF.budgetMaxCr - 0.01) n += 1
   if (f.bhk.length) n += 1
   if (f.propertyTypes.length) n += 1
-  if (!f.upcomingOnly && f.construction.length === 1) n += 1
+  if (!f.upcomingOnly && f.construction.length > 0) n += 1
   if (f.listedBy.length) n += 1
   if (f.amenities.length) n += 1
   /* Built-up, purchase type, age, furnishing, facing: exploration-only in this mock. */
   if (f.developers.length) n += 1
-  if (f.minImageCount > 0) n += 1
+  if (f.mediaPreference !== '') n += 1
   if (f.reraOnly) n += 1
   return n
 }
@@ -183,9 +215,8 @@ export function applySrpFilters(
   f: SrpAppliedFilters,
 ): SrpListing[] {
   const areaSet = new Set(f.hotspotAreaIds)
-  /** Feed “New projects” uses `upcomingOnly`; ignore conflicting construction row */
-  const constructionRow =
-    f.upcomingOnly ? [] : f.construction
+  /** Quick pill “New projects” = any non-ready; sheet Status uses `construction`. */
+  const constructionRow = f.upcomingOnly ? [] : f.construction
 
   return listings.filter((l) => {
     if (f.useHotspot) {
@@ -199,12 +230,10 @@ export function applySrpFilters(
       }
     }
 
-    if (f.upcomingOnly && !l.upcoming) return false
+    if (f.upcomingOnly && l.possessionStatus === 'ready') return false
 
-    if (constructionRow.length === 1) {
-      const c = constructionRow[0]
-      if (c === 'ready' && l.upcoming) return false
-      if (c === 'under_construction' && !l.upcoming) return false
+    if (constructionRow.length > 0) {
+      if (!constructionRow.includes(l.possessionStatus)) return false
     }
 
     if (l.priceCr < f.budgetMinCr || l.priceCr > f.budgetMaxCr) return false
@@ -224,14 +253,22 @@ export function applySrpFilters(
       if (!f.listedBy.includes(lb)) return false
     }
 
-    for (const a of f.amenities) {
-      if (a === 'verified' && !l.verified) return false
-      if (a === 'rera' && !l.rera) return false
+    if (f.amenities.length > 0) {
+      const set = new Set(l.amenityIds)
+      for (const a of f.amenities) {
+        if (!set.has(a)) return false
+      }
     }
 
     if (f.reraOnly && !l.rera) return false
 
-    if (f.minImageCount > 0 && l.imageCount < f.minImageCount) return false
+    if (f.mediaPreference === 'photos') {
+      if (l.hasVideo) return false
+    } else if (f.mediaPreference === 'videos') {
+      if (!l.hasVideo) return false
+    } else if (f.mediaPreference === 'both') {
+      if (!l.hasVideo || l.imageCount < 20) return false
+    }
 
     if (f.developers.length > 0) {
       const name = l.projectName.toLowerCase()
@@ -246,29 +283,127 @@ export function applySrpFilters(
 const BHK_LABEL = Object.fromEntries(
   FILTER_BHK_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
+
+/** Valid BHK filter chip ids (persisted state is filtered to this set). */
+export const ALLOWED_BHK_FILTER_IDS = new Set<string>(
+  FILTER_BHK_OPTIONS.map((o) => o.id),
+)
 const PROPERTY_TYPE_LABEL = Object.fromEntries(
   FILTER_PROPERTY_TYPE_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
+
+export const ALLOWED_PROPERTY_TYPE_IDS = new Set<string>(
+  FILTER_PROPERTY_TYPE_OPTIONS.map((o) => o.id),
+)
+
+/** Older sessions used PascalCase ids from an earlier option list. */
+const LEGACY_PROPERTY_TYPE_ID: Record<string, string> = {
+  Apartment: 'apartments',
+  Villa: 'villa',
+  Duplex: 'duplex',
+  Studio: 'apartments',
+}
+
+export function normalizePropertyTypeFilterId(id: string): string | null {
+  const next = LEGACY_PROPERTY_TYPE_ID[id] ?? id
+  return ALLOWED_PROPERTY_TYPE_IDS.has(next) ? next : null
+}
 const CONSTRUCTION_LABEL = Object.fromEntries(
   FILTER_CONSTRUCTION_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
 const LISTED_LABEL = Object.fromEntries(
   FILTER_LISTED_BY_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
+
+export const ALLOWED_LISTED_BY_IDS = new Set<string>(
+  FILTER_LISTED_BY_OPTIONS.map((o) => o.id),
+)
+
+const LEGACY_LISTED_BY_ID: Record<string, string> = {
+  dealer: 'agent',
+}
+
+export function normalizeListedByFilterId(id: string): string | null {
+  const next = LEGACY_LISTED_BY_ID[id] ?? id
+  return ALLOWED_LISTED_BY_IDS.has(next) ? next : null
+}
 const AMENITY_LABEL = Object.fromEntries(
   FILTER_AMENITIES_LONG.map((o) => [o.id, o.label]),
 ) as Record<string, string>
+
+export const ALLOWED_AMENITY_IDS = new Set<string>(
+  FILTER_AMENITIES_LONG.map((o) => o.id),
+)
+
+/** Older amenity ids from a previous filter list — map or drop. */
+const LEGACY_AMENITY_ID: Record<string, string | null> = {
+  verified: null,
+  rera: null,
+  gym: 'gym_fitness',
+  pool: 'swimming_pool',
+  club: 'clubhouse',
+  park: null,
+  security: 'cctv_surveillance',
+  power: 'power_backup',
+  lift: null,
+  parking: 'covered_parking',
+  kids: null,
+  jog: 'jogging_track',
+}
+
+export function normalizeAmenityFilterId(id: string): string | null {
+  const mapped = LEGACY_AMENITY_ID[id]
+  if (mapped === null) return null
+  const next = mapped ?? id
+  return ALLOWED_AMENITY_IDS.has(next) ? next : null
+}
 const PURCHASE_LABEL = Object.fromEntries(
   FILTER_PURCHASE_TYPE_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
+
+export const ALLOWED_PURCHASE_TYPE_IDS = new Set<string>(
+  FILTER_PURCHASE_TYPE_OPTIONS.map((o) => o.id),
+)
+
+const LEGACY_PURCHASE_TYPE_ID: Record<string, string | null> = {
+  new: 'new_booking',
+  auction: null,
+}
+
+export function normalizePurchaseTypeFilterId(id: string): string | null {
+  const mapped = LEGACY_PURCHASE_TYPE_ID[id]
+  if (mapped === null) return null
+  const next = mapped ?? id
+  return ALLOWED_PURCHASE_TYPE_IDS.has(next) ? next : null
+}
 const AGE_LABEL = Object.fromEntries(
   FILTER_PROPERTY_AGE_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
+
+export const ALLOWED_PROPERTY_AGE_IDS = new Set<string>(
+  FILTER_PROPERTY_AGE_OPTIONS.map((o) => o.id),
+)
+
+const LEGACY_PROPERTY_AGE_ID: Record<string, string> = {
+  '0-1': 'under_1y',
+  '1-3': 'age_3y',
+  '3-5': 'age_5y',
+  '5-10': 'over_5y',
+  '10+': 'over_5y',
+}
+
+export function normalizePropertyAgeFilterId(id: string): string | null {
+  const next = LEGACY_PROPERTY_AGE_ID[id] ?? id
+  return ALLOWED_PROPERTY_AGE_IDS.has(next) ? next : null
+}
 const FURNISH_LABEL = Object.fromEntries(
   FILTER_FURNISHING_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
 const FACING_LABEL = Object.fromEntries(
   FILTER_FACING_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+const MEDIA_LABEL = Object.fromEntries(
+  FILTER_PHOTOS_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
 
 function fmtCr(n: number): string {
@@ -342,13 +477,15 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
   const budgetLo = f.budgetMinCr > DEF.budgetMinCr + 0.01
   const budgetHi = f.budgetMaxCr < DEF.budgetMaxCr - 0.01
   if (budgetLo || budgetHi) {
+    const fmtBudgetChip = (cr: number) =>
+      cr < 1 ? `₹${Math.round(cr * 100)}L` : `₹${fmtCr(cr)}Cr`
     let label = 'Budget'
     if (budgetLo && budgetHi) {
-      label = `₹${fmtCr(f.budgetMinCr)}–${fmtCr(f.budgetMaxCr)} Cr`
+      label = `${fmtBudgetChip(f.budgetMinCr)} – ${fmtBudgetChip(f.budgetMaxCr)}`
     } else if (budgetLo) {
-      label = `Min ₹${fmtCr(f.budgetMinCr)} Cr`
+      label = `Min ${fmtBudgetChip(f.budgetMinCr)}`
     } else {
-      label = `Max ₹${fmtCr(f.budgetMaxCr)} Cr`
+      label = `Max ${fmtBudgetChip(f.budgetMaxCr)}`
     }
     chips.push({
       id: 'budget',
@@ -387,7 +524,10 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
   }
 
   if (!f.upcomingOnly && f.construction.length > 0) {
-    const label = joinOptionLabels([...f.construction].sort(), CONSTRUCTION_LABEL)
+    const label = joinOptionLabels(
+      [...f.construction].sort(),
+      CONSTRUCTION_LABEL,
+    )
     chips.push({
       id: 'construction',
       label: label || 'Status',
@@ -501,14 +641,13 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
     })
   }
 
-  if (f.minImageCount > 0) {
-    const opt = FILTER_PHOTOS_OPTIONS.find((o) => o.id === f.minImageCount)
+  if (f.mediaPreference !== '') {
     chips.push({
       id: 'photos',
-      label: opt?.label ?? `${f.minImageCount}+ photos`,
+      label: MEDIA_LABEL[f.mediaPreference] ?? 'Media',
       clear: (x) => {
         const n = cloneSrpAppliedFilters(x)
-        n.minImageCount = DEF.minImageCount
+        n.mediaPreference = ''
         return n
       },
     })
@@ -517,7 +656,7 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
   if (f.reraOnly) {
     chips.push({
       id: 'reraOnly',
-      label: 'RERA only',
+      label: 'RERA-registered only',
       clear: (x) => {
         const n = cloneSrpAppliedFilters(x)
         n.reraOnly = false

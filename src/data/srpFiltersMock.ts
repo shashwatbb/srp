@@ -1,100 +1,169 @@
 /** Static option lists for SRP full-screen filters (exploration UI). */
 
 export const FILTER_BHK_OPTIONS = [
-  { id: '1', label: '1 BHK' },
-  { id: '1.5', label: '1.5 BHK' },
-  { id: '2', label: '2 BHK' },
-  { id: '2.5', label: '2.5 BHK' },
-  { id: '3', label: '3 BHK' },
-  { id: '3.5', label: '3.5 BHK' },
-  { id: '4+', label: '4+ BHK' },
   { id: 'studio', label: 'Studio' },
+  { id: '1rk', label: '1 RK' },
+  { id: '1', label: '1 BHK' },
+  { id: '2', label: '2 BHK' },
+  { id: '3', label: '3 BHK' },
+  { id: '4+', label: '4+ BHK' },
 ] as const
 
 export const FILTER_PROPERTY_TYPE_OPTIONS = [
   {
-    id: 'Apartment',
-    label: 'Apartment',
+    id: 'apartments',
+    label: 'Apartments',
     hint: 'Flats in towers or blocks with shared building services.',
   },
   {
-    id: 'Villa',
+    id: 'independent_house',
+    label: 'Independent House',
+    hint: 'Standalone house on its own plot.',
+  },
+  {
+    id: 'independent_builder_floor',
+    label: 'Independent Builder Floor',
+    hint: 'One residential floor with independent title.',
+  },
+  {
+    id: 'plot',
+    label: 'Plot',
+    hint: 'Vacant land for your own construction.',
+  },
+  {
+    id: 'penthouse',
+    label: 'Penthouse',
+    hint: 'Top-floor residence, often with terrace or exclusive access.',
+  },
+  {
+    id: 'villa',
     label: 'Villa',
-    hint: 'Standalone home, often with private outdoor space.',
+    hint: 'Low-rise home, often in a gated community.',
   },
   {
-    id: 'Duplex',
+    id: 'duplex',
     label: 'Duplex',
-    hint: 'Two-level unit linked by an internal staircase.',
-  },
-  {
-    id: 'Studio',
-    label: 'Studio',
-    hint: 'Single open room with a compact kitchen zone.',
+    hint: 'Two levels linked by an internal staircase.',
   },
 ] as const
 
 export const FILTER_CONSTRUCTION_OPTIONS = [
-  { id: 'ready' as const, label: 'Ready to move' },
-  { id: 'under_construction' as const, label: 'Under construction' },
-]
+  {
+    id: 'new_launch' as const,
+    label: 'New Launch',
+    hint: 'Early sales, usually before possession.',
+  },
+  {
+    id: 'ready' as const,
+    label: 'Ready to move',
+    hint: 'Complete or near complete for moving in.',
+  },
+  {
+    id: 'under_construction' as const,
+    label: 'Under Construction',
+    hint: 'Work ongoing, not finished yet.',
+  },
+] as const
 
 export const FILTER_LISTED_BY_OPTIONS = [
-  { id: 'owner', label: 'Owner' },
-  { id: 'dealer', label: 'Dealer' },
-]
+  {
+    id: 'owner' as const,
+    label: 'Owner',
+    hint: 'Direct seller, usually the person who owns it.',
+  },
+  {
+    id: 'agent' as const,
+    label: 'Agent',
+    hint: 'Broker or advisor marketing this listing for others.',
+  },
+  {
+    id: 'developer' as const,
+    label: 'Developer',
+    hint: "The builder's own sales or channel team.",
+  },
+  {
+    id: 'featured_agent' as const,
+    label: 'Featured Agent',
+    hint: 'Hand-picked partner with extra visibility on the app.',
+  },
+] as const
 
+/** First 7 are shown before “View more” in the filter sheet. */
 export const FILTER_AMENITIES_LONG = [
-  { id: 'verified', label: 'Verified listings' },
-  { id: 'rera', label: 'RERA mentioned' },
-  { id: 'gym', label: 'Gymnasium' },
-  { id: 'pool', label: 'Swimming pool' },
-  { id: 'club', label: 'Clubhouse' },
-  { id: 'park', label: 'Park / green' },
-  { id: 'security', label: '24×7 security' },
-  { id: 'power', label: 'Power backup' },
-  { id: 'lift', label: 'High-speed lifts' },
-  { id: 'parking', label: 'Covered parking' },
-  { id: 'kids', label: "Kids' play area" },
-  { id: 'jog', label: 'Jogging track' },
-]
+  { id: 'gated_community', label: 'Gated Community' },
+  { id: 'swimming_pool', label: 'Swimming pool' },
+  { id: 'power_backup', label: 'Power Backup' },
+  { id: 'cctv_surveillance', label: 'CCTV Surveillance' },
+  { id: 'gym_fitness', label: 'Gym / Fitness Center' },
+  { id: 'clubhouse', label: 'Clubhouse' },
+  { id: 'jogging_track', label: 'Jogging / Walking Track' },
+  {
+    id: 'outdoor_sports_courts',
+    label: 'Outdoor Sports Courts (Tennis / Badminton / Basketball)',
+  },
+  { id: 'party_hall', label: 'Party Hall' },
+  { id: 'covered_parking', label: 'Covered Parking' },
+  { id: 'open_parking', label: 'Open Parking' },
+  { id: 'ev_charging', label: 'EV Charging Stations' },
+  { id: 'rainwater_harvesting', label: 'Rainwater Harvesting' },
+  { id: 'sewage_treatment_plant', label: 'Sewage Treatment Plant' },
+  { id: 'solar_panels', label: 'Solar Panels' },
+  { id: 'vastu_compliant', label: 'Vastu Compliant' },
+  { id: 'waste_management', label: 'Waste Management' },
+  { id: 'gas_pipeline', label: 'Gas Pipeline' },
+  { id: 'corner_property', label: 'Corner Property' },
+  { id: 'boundary_wall', label: 'Boundary wall present' },
+] as const
+
+export const FILTER_AMENITIES_INITIAL_VISIBLE = 7
 
 export const FILTER_PURCHASE_TYPE_OPTIONS = [
-  { id: 'new', label: 'New booking' },
-  { id: 'resale', label: 'Resale' },
-  { id: 'auction', label: 'Auction' },
-]
+  {
+    id: 'resale' as const,
+    label: 'Resale',
+    hint: 'Buy from the current owner of an existing unit.',
+  },
+  {
+    id: 'new_booking' as const,
+    label: 'New Booking',
+    hint: 'Book directly with the developer, often pre-handover.',
+  },
+  {
+    id: 'pre_lived' as const,
+    label: 'Pre-lived',
+    hint: 'Previously occupied; resale with prior use.',
+  },
+] as const
 
 export const FILTER_PROPERTY_AGE_OPTIONS = [
-  { id: '0-1', label: 'Under 1 year' },
-  { id: '1-3', label: '1–3 years' },
-  { id: '3-5', label: '3–5 years' },
-  { id: '5-10', label: '5–10 years' },
-  { id: '10+', label: '10+ years' },
-]
+  { id: 'under_1y' as const, label: 'Less than a year' },
+  { id: 'age_3y' as const, label: '3 years' },
+  { id: 'age_5y' as const, label: '5 years' },
+  { id: 'over_5y' as const, label: 'More than 5 years' },
+] as const
 
 export const FILTER_DEVELOPER_OPTIONS = [
-  'Lodha',
-  'DLF',
-  'Sobha',
-  'Prestige',
-  'Godrej',
-  'Brigade',
-  'Mahindra',
-  'Tata',
-  'M3M',
-  'Experion',
-  'ATS',
-  'IREO',
-  'Emaar',
-  'Central Park',
-  'Bestech',
-  'Vatika',
-  'Ambience',
-  'Paras',
-  'Chintels',
-  'Raheja',
-]
+  { id: 'Lodha', projectCount: 46 },
+  { id: 'DLF', projectCount: 57 },
+  { id: 'Sobha', projectCount: 34 },
+  { id: 'Prestige', projectCount: 41 },
+  { id: 'Godrej', projectCount: 38 },
+  { id: 'Brigade', projectCount: 22 },
+  { id: 'Mahindra', projectCount: 29 },
+  { id: 'Tata', projectCount: 52 },
+  { id: 'M3M', projectCount: 31 },
+  { id: 'Experion', projectCount: 18 },
+  { id: 'ATS', projectCount: 24 },
+  { id: 'IREO', projectCount: 19 },
+  { id: 'Emaar', projectCount: 44 },
+  { id: 'Central Park', projectCount: 16 },
+  { id: 'Bestech', projectCount: 14 },
+  { id: 'Vatika', projectCount: 21 },
+  { id: 'Ambience', projectCount: 12 },
+  { id: 'Paras', projectCount: 17 },
+  { id: 'Chintels', projectCount: 9 },
+  { id: 'Raheja', projectCount: 15 },
+] as const
 
 export const FILTER_FURNISHING_OPTIONS = [
   { id: 'furnished', label: 'Furnished' },
@@ -114,11 +183,10 @@ export const FILTER_FACING_OPTIONS = [
 ]
 
 export const FILTER_PHOTOS_OPTIONS = [
-  { id: 0, label: 'Any' },
-  { id: 5, label: '5+ photos' },
-  { id: 10, label: '10+ photos' },
-  { id: 20, label: '20+ photos' },
-]
+  { id: 'photos' as const, label: 'Photos' },
+  { id: 'videos' as const, label: 'Videos' },
+  { id: 'both' as const, label: 'Both' },
+] as const
 
 export const FILTER_CATEGORY_IDS = [
   'budget',
@@ -144,14 +212,14 @@ export const FILTER_CATEGORY_LABELS: Record<FilterCategoryId, string> = {
   bhk: 'BHK',
   propertyType: 'Type',
   construction: 'Status',
-  listedBy: 'Listed',
+  listedBy: 'Listed by',
   amenities: 'Amenities',
   area: 'Area',
-  purchaseType: 'Purchase',
+  purchaseType: 'Deal type',
   propertyAge: 'Age',
   developer: 'Developer',
   furnishing: 'Furnishing',
   facing: 'Facing',
-  photos: 'Photos',
+  photos: 'Photos & video',
   rera: 'RERA',
 }

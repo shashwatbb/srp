@@ -441,6 +441,9 @@ export function SrpPage({
   )
   const filterHotspot = appliedFilters.useHotspot
   const filterUpcoming = appliedFilters.upcomingOnly
+  const showNewProjectsGuidance =
+    appliedFilters.upcomingOnly ||
+    appliedFilters.construction.includes('new_launch')
 
   useEffect(() => {
     setVisibleLimit(INITIAL_VISIBLE)
@@ -467,7 +470,9 @@ export function SrpPage({
     [listings],
   )
   const youMayAlsoLikeNewProjects = useMemo(() => {
-    const upcomingPool = listings.filter((l) => l.upcoming)
+    const upcomingPool = listings.filter(
+      (l) => l.possessionStatus !== 'ready',
+    )
     return upcomingListingsDistinctFromHotspotHead(
       youMayAlsoLikeHotspots,
       upcomingPool,
@@ -948,7 +953,7 @@ export function SrpPage({
 
         {filtered.length === 0 && !showListSkeleton ? (
           <div className="flex flex-col gap-4">
-            {filterUpcoming ? <SrpNewProjectsInfoBlock /> : null}
+            {showNewProjectsGuidance ? <SrpNewProjectsInfoBlock /> : null}
             <div className="rounded-xl border border-[#E8E8E8] bg-[#FAFAFA] px-4 py-8 text-center shadow-sm">
               <p className="text-sm font-medium text-[#222222]">No listings match</p>
               <p className="mt-1 text-xs text-[#6A6A6A]">
@@ -966,14 +971,14 @@ export function SrpPage({
           </div>
         ) : filtered.length === 0 && showListSkeleton ? (
           <div className="flex flex-col gap-4">
-            {filterUpcoming ? <SrpNewProjectsInfoBlock /> : null}
+            {showNewProjectsGuidance ? <SrpNewProjectsInfoBlock /> : null}
             {Array.from({ length: EMPTY_LIST_SKELETON_COUNT }, (_, i) => (
               <SrpListingCardSkeleton key={i} staggerIndex={i} />
             ))}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {filterUpcoming ? <SrpNewProjectsInfoBlock /> : null}
+            {showNewProjectsGuidance ? <SrpNewProjectsInfoBlock /> : null}
             {feedElements}
             {canViewMore && !showListSkeleton ? (
               <div className="rounded-xl border border-[#E8E8E8] bg-[#FAFAFA] px-4 py-4 text-center shadow-[0_1px_3px_rgba(0,0,0,0.05)]">

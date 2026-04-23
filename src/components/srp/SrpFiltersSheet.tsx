@@ -9,10 +9,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  ALL_HOTSPOT_AREA_IDS,
-  HOTSPOT_AREA_OPTIONS,
-} from '../../data/srpAreasMock'
-import {
+  FILTER_AMENITIES_INITIAL_VISIBLE,
   FILTER_AMENITIES_LONG,
   FILTER_BHK_OPTIONS,
   FILTER_CATEGORY_IDS,
@@ -28,12 +25,17 @@ import {
   FILTER_PURCHASE_TYPE_OPTIONS,
   type FilterCategoryId,
 } from '../../data/srpFiltersMock'
+import { filterCategoryRailHaptic } from '../../lib/gentleHaptic'
 import {
   areSrpAppliedFiltersEqual,
   cloneSrpAppliedFilters,
   countActiveSrpFilterDimensions,
   createDefaultSrpAppliedFilters,
+  SRP_BUDGET_MAX_CR,
+  SRP_BUDGET_MIN_CR,
+  SRP_BUDGET_SNAP_STEPS_CR,
   type SrpAppliedFilters,
+  type SrpConstructionStatusId,
 } from './srpFilterModel'
 
 type SrpFiltersSheetProps = {
@@ -76,25 +78,6 @@ function FilterScreenBackIcon() {
   )
 }
 
-/** Muted magnifier — matches low-emphasis chrome on SRP search, not the purple bar icon */
-function FilterSheetSearchIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.85"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="M20 20l-4.3-4.3" />
-    </svg>
-  )
-}
-
 function PanelSectionLabel({ categoryId }: { categoryId: FilterCategoryId }) {
   return (
     <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#878787]">
@@ -103,40 +86,50 @@ function PanelSectionLabel({ categoryId }: { categoryId: FilterCategoryId }) {
   )
 }
 
-/** Radio-style row: circle + label (reference right column). */
+/** Single-select row: radio ring + dot use same black / grey palette as checkbox column. */
 function FilterOptionRow({
   selected,
   label,
+  hint,
   onClick,
 }: {
   selected: boolean
   label: string
+  hint?: string
   onClick: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 border-b border-[#F0F0F0] bg-white py-4 pl-1 pr-2 text-left last:border-b-0 active:bg-white"
+      aria-label={hint ? `${label}. ${hint}` : label}
+      className="flex w-full items-center gap-3 bg-white py-4 pl-1 pr-2 text-left active:bg-white"
     >
       <span
         className={[
-          'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors',
-          selected ? 'border-[#5B22DE]' : 'border-[#CFCFCF]',
+          'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-[border-color] duration-200',
+          selected ? 'border-black' : 'border-[#C8C8C8]',
         ].join(' ')}
         aria-hidden
       >
         {selected ? (
-          <span className="h-[11px] w-[11px] rounded-full bg-[#5B22DE]" />
+          <span className="h-[11px] w-[11px] rounded-full bg-[#0a0a0a]" />
         ) : null}
       </span>
-      <span
-        className={[
-          'min-w-0 flex-1 text-[15px] leading-snug',
-          selected ? 'font-medium text-[#212121]' : 'font-normal text-[#454545]',
-        ].join(' ')}
-      >
-        {label}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+        <span
+          className={[
+            'text-[15px] leading-snug',
+            selected ? 'font-medium text-[#212121]' : 'font-normal text-[#454545]',
+          ].join(' ')}
+        >
+          {label}
+        </span>
+        {hint ? (
+          <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
+            {hint}
+          </span>
+        ) : null}
       </span>
     </button>
   )
@@ -148,8 +141,9 @@ function toggleInArray<T extends string>(arr: T[], id: T): T[] {
   return [...arr, id]
 }
 
-const BUDGET_CR_LO = 0
-const BUDGET_CR_HI = 30
+const BUDGET_CR_LO = SRP_BUDGET_MIN_CR
+const BUDGET_CR_HI = SRP_BUDGET_MAX_CR
+const BUDGET_CR_SPAN = BUDGET_CR_HI - BUDGET_CR_LO
 const BUDGET_CR_GAP = 0.05
 
 const BUDGET_QUICK_CHIPS: readonly {
@@ -158,12 +152,12 @@ const BUDGET_QUICK_CHIPS: readonly {
   min: number
   max: number
 }[] = [
-  { id: 'u75', label: 'Under 75L', min: 0, max: 0.75 },
-  { id: '75-15', label: '75L – 1.5Cr', min: 0.75, max: 1.5 },
-  { id: '15-25', label: '1.5Cr – 2.5Cr', min: 1.5, max: 2.5 },
-  { id: '25-4', label: '2.5Cr – 4Cr', min: 2.5, max: 4 },
-  { id: '4-5', label: '4Cr – 5Cr', min: 4, max: 5 },
-  { id: '5p', label: '5Cr+', min: 5, max: 30 },
+  { id: '10-20', label: '₹10L – ₹20L', min: 0.1, max: 0.2 },
+  { id: '20-1', label: '₹20L – ₹1Cr', min: 0.2, max: 1 },
+  { id: '1-2', label: '₹1Cr – ₹2Cr', min: 1, max: 2 },
+  { id: '2-25', label: '₹2Cr – ₹2.5Cr', min: 2, max: 2.5 },
+  { id: '25-4', label: '₹2.5Cr – ₹4Cr', min: 2.5, max: 4 },
+  { id: '4-5', label: '₹4Cr – ₹5Cr', min: 4, max: 5 },
 ]
 
 /** Crore part rounded to cents of a crore, max two fractional digits, trailing zeros trimmed */
@@ -177,8 +171,8 @@ function formatBudgetCrCoreTwoDp(cr: number): string {
  * after the decimal in crore form (₹26.25Cr) — avoids long four-digit lakh strings.
  */
 function formatBudgetPriceCr(cr: number, role: 'min' | 'max'): string {
-  if (cr <= 0) return 'Any'
-  if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹30Cr+'
+  if (cr < BUDGET_CR_LO - 1e-9) return 'Any'
+  if (role === 'max' && cr >= BUDGET_CR_HI - 0.001) return '₹5Cr+'
   if (cr < 1) {
     const lakhs = Math.round(cr * 100)
     return lakhs <= 0 ? 'Any' : `₹${lakhs}L`
@@ -217,7 +211,7 @@ function budgetRangeFromChipIds(
 function valueFromTrackClientY(clientY: number, rect: DOMRect): number {
   const fromBottom = rect.bottom - clientY
   const ratio = Math.min(1, Math.max(0, fromBottom / rect.height))
-  return ratio * BUDGET_CR_HI
+  return BUDGET_CR_LO + ratio * BUDGET_CR_SPAN
 }
 
 const BUDGET_TRACK_H = 248
@@ -239,15 +233,9 @@ const BUDGET_SLIDER_ROW_ALIGN_SHIFT_PX =
   BUDGET_SLIDER_ROW_W / 2 -
   (BUDGET_THUMB_LABEL_COL_W + BUDGET_BAR_COL_W / 2)
 /** Silent tick marks to the right of the budget bar (no labels) */
-const BUDGET_BAR_STEPPER_COUNT = 9
+const BUDGET_BAR_STEPPER_COUNT = SRP_BUDGET_SNAP_STEPS_CR.length
 const BUDGET_BAR_GREY = '#E8EAEF'
-const BUDGET_STEPPER_CRS: readonly number[] = (() => {
-  const n = BUDGET_BAR_STEPPER_COUNT
-  if (n < 2) return [BUDGET_CR_LO, BUDGET_CR_HI]
-  return Array.from({ length: n }, (_, i) =>
-    Number((BUDGET_CR_HI * (1 - i / (n - 1))).toFixed(4)),
-  )
-})()
+const BUDGET_STEPPER_CRS: readonly number[] = SRP_BUDGET_SNAP_STEPS_CR
 
 function snapToNearestStepperCr(v: number): number {
   let best = BUDGET_STEPPER_CRS[0]!
@@ -361,10 +349,13 @@ function BudgetVerticalRange({
   }
 
   const thumbBottomPx = (cr: number) =>
-    (cr / BUDGET_CR_HI) * BUDGET_TRACK_H - BUDGET_THUMB_PX / 2
+    ((cr - BUDGET_CR_LO) / BUDGET_CR_SPAN) * BUDGET_TRACK_H -
+    BUDGET_THUMB_PX / 2
 
-  const purpleBottom = (minCr / BUDGET_CR_HI) * BUDGET_TRACK_H
-  const purpleHeight = ((maxCr - minCr) / BUDGET_CR_HI) * BUDGET_TRACK_H
+  const purpleBottom =
+    ((minCr - BUDGET_CR_LO) / BUDGET_CR_SPAN) * BUDGET_TRACK_H
+  const purpleHeight =
+    ((maxCr - minCr) / BUDGET_CR_SPAN) * BUDGET_TRACK_H
 
   const thumbStyle = (cr: number) => ({
     left: '50%',
@@ -376,7 +367,7 @@ function BudgetVerticalRange({
 
   /** Vertical center of thumb from track bottom (px) — for aligned price pills */
   const thumbCenterBottomPx = (cr: number) =>
-    (cr / BUDGET_CR_HI) * BUDGET_TRACK_H
+    ((cr - BUDGET_CR_LO) / BUDGET_CR_SPAN) * BUDGET_TRACK_H
 
   const stepPricePillClass =
     'pointer-events-none absolute right-0 z-[1] truncate rounded-lg bg-[#5B22DE] px-2 py-1.5 text-center text-[10px] font-semibold leading-tight text-white'
@@ -984,7 +975,13 @@ function AreaFilterPanel({
   )
 }
 
-type CheckboxFilterItem = { id: string; label: string; hint?: string }
+type CheckboxFilterItem = {
+  id: string
+  label: string
+  hint?: string
+  /** Developer filter: show project count under the name */
+  projectCount?: number
+}
 
 const BHK_CHECKBOX_ITEMS: CheckboxFilterItem[] = FILTER_BHK_OPTIONS.map(
   (o) => ({ id: o.id, label: o.label }),
@@ -1001,39 +998,38 @@ const CONSTRUCTION_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_CONSTRUCTION_OPTIONS.map((o) => ({
     id: o.id,
     label: o.label,
+    hint: o.hint,
   }))
 
 const LISTED_BY_CHECKBOX_ITEMS: CheckboxFilterItem[] =
-  FILTER_LISTED_BY_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+  FILTER_LISTED_BY_OPTIONS.map((o) => ({
+    id: o.id,
+    label: o.label,
+    hint: o.hint,
+  }))
 
 const AMENITIES_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_AMENITIES_LONG.map((o) => ({ id: o.id, label: o.label }))
 
 const PURCHASE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
-  FILTER_PURCHASE_TYPE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
-
-const PROPERTY_AGE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
-  FILTER_PROPERTY_AGE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+  FILTER_PURCHASE_TYPE_OPTIONS.map((o) => ({
+    id: o.id,
+    label: o.label,
+    hint: o.hint,
+  }))
 
 const DEVELOPER_CHECKBOX_ITEMS: CheckboxFilterItem[] =
-  FILTER_DEVELOPER_OPTIONS.map((name) => ({ id: name, label: name }))
+  FILTER_DEVELOPER_OPTIONS.map((o) => ({
+    id: o.id,
+    label: o.id,
+    projectCount: o.projectCount,
+  }))
 
 const FURNISHING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_FURNISHING_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
 
 const FACING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_FACING_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
-
-const PHOTOS_CHECKBOX_ITEMS: CheckboxFilterItem[] =
-  FILTER_PHOTOS_OPTIONS.map((o) => ({
-    id: String(o.id),
-    label: o.label,
-  }))
-
-const RERA_CHECKBOX_ITEMS: CheckboxFilterItem[] = [
-  { id: 'all', label: 'Show all' },
-  { id: 'rera', label: 'RERA-registered only' },
-]
 
 /** BHK / Type: checkbox column, dividers, optional hint line, tap pulse on title */
 function CheckboxFilterColumn({
@@ -1068,7 +1064,7 @@ function CheckboxFilterColumn({
   }, [])
 
   return (
-    <div className="flex w-full flex-col divide-y divide-[#F3F3F3] bg-white">
+    <div className="flex w-full flex-col bg-white">
       {items.map((o) => {
         const selected = selectedIds.includes(o.id)
         const pulsing = pulseId === o.id
@@ -1078,7 +1074,13 @@ function CheckboxFilterColumn({
             type="button"
             role="checkbox"
             aria-checked={selected}
-            aria-label={o.hint ? `${o.label}. ${o.hint}` : o.label}
+            aria-label={
+              typeof o.projectCount === 'number'
+                ? `${o.label}, ${o.projectCount} projects`
+                : o.hint
+                  ? `${o.label}. ${o.hint}`
+                  : o.label
+            }
             className="flex w-full items-center gap-4 py-5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
             onClick={() => {
               onToggle(o.id)
@@ -1109,26 +1111,52 @@ function CheckboxFilterColumn({
                 </svg>
               ) : null}
             </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-              <span
-                className={[
-                  'text-[15px] leading-relaxed transition-colors duration-300 ease-out',
-                  selected
-                    ? 'font-medium text-[#212121]'
-                    : 'font-normal text-[#454545]',
-                  pulsing ? 'text-[#7C5BD6]' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                {o.label}
-              </span>
-              {o.hint ? (
-                <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
-                  {o.hint}
+            {typeof o.projectCount === 'number' ? (
+              <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left">
+                <span
+                  className={[
+                    'min-w-0 truncate text-[15px] leading-relaxed transition-colors duration-300 ease-out',
+                    selected
+                      ? 'font-medium text-[#212121]'
+                      : 'font-normal text-[#454545]',
+                    pulsing ? 'text-[#7C5BD6]' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {o.label}
                 </span>
-              ) : null}
-            </span>
+                <span
+                  className="h-3.5 w-px shrink-0 self-center bg-[#D6D6D6]"
+                  aria-hidden
+                />
+                <span className="shrink-0 text-[13px] font-normal tabular-nums leading-relaxed text-[#6B6B6B]">
+                  {o.projectCount}{' '}
+                  {o.projectCount === 1 ? 'project' : 'projects'}
+                </span>
+              </span>
+            ) : (
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+                <span
+                  className={[
+                    'text-[15px] leading-relaxed transition-colors duration-300 ease-out',
+                    selected
+                      ? 'font-medium text-[#212121]'
+                      : 'font-normal text-[#454545]',
+                    pulsing ? 'text-[#7C5BD6]' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {o.label}
+                </span>
+                {o.hint ? (
+                  <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
+                    {o.hint}
+                  </span>
+                ) : null}
+              </span>
+            )}
           </button>
         )
       })}
@@ -1136,17 +1164,19 @@ function CheckboxFilterColumn({
   )
 }
 
-/** Long lists: same checkbox column; “Show more” expands once (no “Show less”). */
+/** Long lists: same checkbox column; expand CTA expands once (no “Show less”). */
 function ExpandableCheckboxColumn({
   items,
   selectedIds,
   onToggle,
   initial = 5,
+  expandButtonLabel = 'Show more',
 }: {
   items: readonly CheckboxFilterItem[]
   selectedIds: string[]
   onToggle: (id: string) => void
   initial?: number
+  expandButtonLabel?: string
 }) {
   const [expanded, setExpanded] = useState(false)
   const visible = expanded ? items : items.slice(0, initial)
@@ -1163,32 +1193,19 @@ function ExpandableCheckboxColumn({
           onClick={() => setExpanded(true)}
           className="mt-4 px-1 text-left text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
         >
-          Show more
+          {expandButtonLabel}
         </button>
       ) : null}
     </div>
   )
 }
 
-/** Left category rail only — very light tap when switching category */
-function filterLeftCategoryHaptic() {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    try {
-      navigator.vibrate(5)
-    } catch {
-      /* unsupported */
-    }
-  }
-}
-
 function CategoryNav({
   active,
   onSelect,
-  visibleIds,
 }: {
   active: FilterCategoryId
   onSelect: (id: FilterCategoryId) => void
-  visibleIds: readonly FilterCategoryId[]
 }) {
   return (
     <nav
@@ -1196,46 +1213,40 @@ function CategoryNav({
       style={{ WebkitOverflowScrolling: 'touch' }}
       aria-label="Filter categories"
     >
-      {visibleIds.length === 0 ? (
-        <p className="px-2 py-4 text-center text-[11px] leading-snug text-[#B0B0B0]">
-          No categories match
-        </p>
-      ) : (
-        visibleIds.map((id) => {
-          const isActive = id === active
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                if (id !== active) filterLeftCategoryHaptic()
-                onSelect(id)
-              }}
+      {FILTER_CATEGORY_IDS.map((id) => {
+        const isActive = id === active
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              if (id !== active) filterCategoryRailHaptic()
+              onSelect(id)
+            }}
+            className={[
+              'flex w-full items-stretch bg-white text-left text-[13px] leading-snug transition-[background] duration-200',
+              isActive
+                ? 'font-medium text-[#2d1f4e] [background-image:linear-gradient(90deg,#f3ecff_0%,#faf7ff_42%,#ffffff_100%)]'
+                : 'font-normal text-[#212121] active:bg-[#FCFCFC]',
+            ].join(' ')}
+          >
+            {isActive ? (
+              <span
+                className="w-[5px] shrink-0 self-stretch rounded-r-[10px] bg-[#5B22DE]"
+                aria-hidden
+              />
+            ) : null}
+            <span
               className={[
-                'flex w-full items-stretch bg-white text-left text-[11px] leading-snug transition-[background] duration-200',
-                isActive
-                  ? 'font-medium text-[#2d1f4e] [background-image:linear-gradient(90deg,#f3ecff_0%,#faf7ff_42%,#ffffff_100%)]'
-                  : 'font-normal text-[#212121] active:bg-[#FCFCFC]',
+                'min-w-0 flex-1 py-3.5 pr-2 text-left',
+                isActive ? 'pl-1.5' : 'pl-2',
               ].join(' ')}
             >
-              {isActive ? (
-                <span
-                  className="w-[5px] shrink-0 self-stretch rounded-r-[10px] bg-[#5B22DE]"
-                  aria-hidden
-                />
-              ) : null}
-              <span
-                className={[
-                  'min-w-0 flex-1 py-3.5 pr-2 text-left',
-                  isActive ? 'pl-1.5' : 'pl-2',
-                ].join(' ')}
-              >
-                {FILTER_CATEGORY_LABELS[id]}
-              </span>
-            </button>
-          )
-        })
-      )}
+              {FILTER_CATEGORY_LABELS[id]}
+            </span>
+          </button>
+        )
+      })}
     </nav>
   )
 }
@@ -1249,8 +1260,7 @@ function RightPanel({
   draft: SrpAppliedFilters
   setDraft: Dispatch<SetStateAction<SrpAppliedFilters>>
 }) {
-  const listWrap =
-    'mt-2 overflow-hidden rounded-xl border border-[#E8E8E8] bg-white'
+  const listWrap = 'mt-2 overflow-hidden rounded-xl bg-white'
 
   if (active === 'budget') {
     return (
@@ -1320,9 +1330,10 @@ function RightPanel({
             onToggle={(id) =>
               setDraft((d) => ({
                 ...d,
+                upcomingOnly: false,
                 construction: toggleInArray(
                   d.construction,
-                  id as 'ready' | 'under_construction',
+                  id as SrpConstructionStatusId,
                 ),
               }))
             }
@@ -1366,7 +1377,8 @@ function RightPanel({
                 amenities: toggleInArray(d.amenities, id),
               }))
             }
-            initial={5}
+            initial={FILTER_AMENITIES_INITIAL_VISIBLE}
+            expandButtonLabel="View more"
           />
         </div>
       </div>
@@ -1386,60 +1398,6 @@ function RightPanel({
             }
           />
         </div>
-        <p className="mb-1 mt-10 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#878787]">
-          City hotspots
-        </p>
-        <div className={listWrap}>
-          <FilterOptionRow
-            label="Entire city"
-            selected={!draft.useHotspot}
-            onClick={() =>
-              setDraft((d) => ({ ...d, useHotspot: false }))
-            }
-          />
-          <FilterOptionRow
-            label="City hotspots only"
-            selected={draft.useHotspot}
-            onClick={() =>
-              setDraft((d) => {
-                const next = true
-                return {
-                  ...d,
-                  useHotspot: next,
-                  hotspotAreaIds:
-                    d.hotspotAreaIds.length === 0
-                      ? [...ALL_HOTSPOT_AREA_IDS]
-                      : d.hotspotAreaIds,
-                }
-              })
-            }
-          />
-        </div>
-        {draft.useHotspot ? (
-          <div className="mt-6">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#878787]">
-              Micro-markets
-            </p>
-            <div className={listWrap}>
-              {HOTSPOT_AREA_OPTIONS.map((a) => (
-                <FilterOptionRow
-                  key={a.id}
-                  label={a.chipLabel ?? a.label}
-                  selected={draft.hotspotAreaIds.includes(a.id)}
-                  onClick={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      hotspotAreaIds: toggleInArray(
-                        [...d.hotspotAreaIds],
-                        a.id,
-                      ),
-                    }))
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
       </div>
     )
   }
@@ -1468,18 +1426,25 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="propertyAge" />
-        <div className="mt-2">
-          <ExpandableCheckboxColumn
-            items={PROPERTY_AGE_CHECKBOX_ITEMS}
-            selectedIds={draft.propertyAges}
-            onToggle={(id) =>
-              setDraft((d) => ({
-                ...d,
-                propertyAges: toggleInArray(d.propertyAges, id),
-              }))
-            }
-            initial={5}
+        <div className={listWrap}>
+          <FilterOptionRow
+            label="Any"
+            selected={draft.propertyAges.length === 0}
+            onClick={() => setDraft((d) => ({ ...d, propertyAges: [] }))}
           />
+          {FILTER_PROPERTY_AGE_OPTIONS.map((o) => (
+            <FilterOptionRow
+              key={o.id}
+              label={o.label}
+              selected={
+                draft.propertyAges.length === 1 &&
+                draft.propertyAges[0] === o.id
+              }
+              onClick={() =>
+                setDraft((d) => ({ ...d, propertyAges: [o.id] }))
+              }
+            />
+          ))}
         </div>
       </div>
     )
@@ -1551,14 +1516,20 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="photos" />
-        <div className="mt-2">
-          <CheckboxFilterColumn
-            items={PHOTOS_CHECKBOX_ITEMS}
-            selectedIds={[String(draft.minImageCount)]}
-            onToggle={(id) =>
-              setDraft((d) => ({ ...d, minImageCount: Number(id) }))
-            }
-          />
+        <div className={listWrap}>
+          {FILTER_PHOTOS_OPTIONS.map((opt) => (
+            <FilterOptionRow
+              key={opt.id}
+              label={opt.label}
+              selected={draft.mediaPreference === opt.id}
+              onClick={() =>
+                setDraft((d) => ({
+                  ...d,
+                  mediaPreference: opt.id,
+                }))
+              }
+            />
+          ))}
         </div>
       </div>
     )
@@ -1568,15 +1539,12 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="rera" />
-        <div className="mt-2">
-          <CheckboxFilterColumn
-            items={RERA_CHECKBOX_ITEMS}
-            selectedIds={draft.reraOnly ? ['rera'] : ['all']}
-            onToggle={(id) =>
-              setDraft((d) => ({
-                ...d,
-                reraOnly: id === 'rera',
-              }))
+        <div className={listWrap}>
+          <FilterOptionRow
+            label="RERA-registered only"
+            selected={draft.reraOnly}
+            onClick={() =>
+              setDraft((d) => ({ ...d, reraOnly: !d.reraOnly }))
             }
           />
         </div>
@@ -1595,18 +1563,9 @@ export function SrpFiltersSheet({
   onCloseMotionStart,
 }: SrpFiltersSheetProps) {
   const [active, setActive] = useState<FilterCategoryId>('budget')
-  const [categoryQuery, setCategoryQuery] = useState('')
   const [draft, setDraft] = useState<SrpAppliedFilters>(() =>
     cloneSrpAppliedFilters(applied),
   )
-
-  const visibleCategoryIds = useMemo(() => {
-    const q = categoryQuery.trim().toLowerCase()
-    if (!q) return FILTER_CATEGORY_IDS
-    return FILTER_CATEGORY_IDS.filter((id) =>
-      FILTER_CATEGORY_LABELS[id].toLowerCase().includes(q),
-    )
-  }, [categoryQuery])
   /** Keep portal mounted while exit animation runs */
   const [present, setPresent] = useState(open)
   /** Sheet at rest position (open) vs off-screen (closed) */
@@ -1681,16 +1640,8 @@ export function SrpFiltersSheet({
     if (open) {
       setDraft(cloneSrpAppliedFilters(applied))
       setActive('budget')
-      setCategoryQuery('')
     }
   }, [open, applied])
-
-  useEffect(() => {
-    if (visibleCategoryIds.length === 0) return
-    if (!visibleCategoryIds.includes(active)) {
-      setActive(visibleCategoryIds[0]!)
-    }
-  }, [visibleCategoryIds, active])
 
   useEffect(() => {
     if (!present) return
@@ -1791,12 +1742,12 @@ export function SrpFiltersSheet({
             onClick={(e) => e.stopPropagation()}
           >
             <header
-              className="flex shrink-0 items-center gap-2 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
+              className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
               style={{
                 paddingTop: 'max(10px, env(safe-area-inset-top, 0px))',
               }}
             >
-              <div className="flex min-w-0 shrink-0 items-center gap-0.5">
+              <div className="flex min-w-0 flex-1 items-center gap-0.5">
                 <button
                   type="button"
                   onClick={closeAnimated}
@@ -1813,24 +1764,6 @@ export function SrpFiltersSheet({
                 </h1>
               </div>
 
-              <div className="mx-1 flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-lg border border-[#EFEFEF] bg-[#FAFAFA] px-2.5 py-2 outline-none focus-within:border-[#E6E6E6]">
-                <span
-                  className="shrink-0 text-[#B8B8B8]"
-                  aria-hidden
-                >
-                  <FilterSheetSearchIcon />
-                </span>
-                <input
-                  type="search"
-                  value={categoryQuery}
-                  onChange={(e) => setCategoryQuery(e.target.value)}
-                  placeholder="Search"
-                  enterKeyHint="search"
-                  className="min-w-0 flex-1 border-0 bg-transparent py-0.5 text-[15px] font-normal leading-normal text-[#555555] placeholder:text-[#BDBDBD] outline-none focus:ring-0"
-                  aria-label="Search filter categories"
-                />
-              </div>
-
               <button
                 type="button"
                 onClick={clearAll}
@@ -1841,11 +1774,7 @@ export function SrpFiltersSheet({
             </header>
 
             <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
-              <CategoryNav
-                active={active}
-                onSelect={setActive}
-                visibleIds={visibleCategoryIds}
-              />
+              <CategoryNav active={active} onSelect={setActive} />
               <div
                 className="srp-filter-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white"
                 style={{ WebkitOverflowScrolling: 'touch' }}

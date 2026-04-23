@@ -1,8 +1,21 @@
 import {
+  ALLOWED_BHK_FILTER_IDS,
   cloneSrpAppliedFilters,
   createDefaultSrpAppliedFilters,
+  normalizeAmenityFilterId,
+  normalizeListedByFilterId,
+  normalizePropertyTypeFilterId,
+  normalizePropertyAgeFilterId,
+  normalizePurchaseTypeFilterId,
+  SRP_BUDGET_MAX_CR,
+  SRP_BUDGET_MIN_CR,
   type SrpAppliedFilters,
+  type SrpMediaPreference,
 } from '../components/srp/srpFilterModel'
+
+function clampBudgetCr(n: number): number {
+  return Math.min(SRP_BUDGET_MAX_CR, Math.max(SRP_BUDGET_MIN_CR, n))
+}
 
 const JOURNEY_KEY = 'srp-app-journey-v1'
 
@@ -66,32 +79,84 @@ export function hydrateAppliedFiltersJson(json: string): SrpAppliedFilters | nul
     const o = JSON.parse(json) as Partial<SrpAppliedFilters>
     if (!o || typeof o !== 'object') return null
     const d = createDefaultSrpAppliedFilters()
+    let budgetMinCr =
+      typeof o.budgetMinCr === 'number' ? clampBudgetCr(o.budgetMinCr) : d.budgetMinCr
+    let budgetMaxCr =
+      typeof o.budgetMaxCr === 'number' ? clampBudgetCr(o.budgetMaxCr) : d.budgetMaxCr
+    if (budgetMinCr > budgetMaxCr) {
+      budgetMinCr = d.budgetMinCr
+      budgetMaxCr = d.budgetMaxCr
+    }
+
+    const oLegacy = o as Partial<SrpAppliedFilters> & { minImageCount?: number }
+    let mediaPreference: SrpMediaPreference = d.mediaPreference
+    if (
+      o.mediaPreference === 'photos' ||
+      o.mediaPreference === 'videos' ||
+      o.mediaPreference === 'both' ||
+      o.mediaPreference === ''
+    ) {
+      mediaPreference = o.mediaPreference
+    } else if (typeof oLegacy.minImageCount === 'number' && oLegacy.minImageCount > 0) {
+      mediaPreference = 'photos'
+    }
+
     const merged: SrpAppliedFilters = {
       ...d,
       ...o,
       hotspotAreaIds: Array.isArray(o.hotspotAreaIds)
         ? o.hotspotAreaIds.filter((x): x is string => typeof x === 'string')
         : d.hotspotAreaIds,
-      bhk: Array.isArray(o.bhk) ? o.bhk.filter((x): x is string => typeof x === 'string') : d.bhk,
+      bhk: Array.isArray(o.bhk)
+        ? o.bhk.filter(
+            (x): x is string =>
+              typeof x === 'string' && ALLOWED_BHK_FILTER_IDS.has(x),
+          )
+        : d.bhk,
       propertyTypes: Array.isArray(o.propertyTypes)
-        ? o.propertyTypes.filter((x): x is string => typeof x === 'string')
+        ? o.propertyTypes
+            .filter((x): x is string => typeof x === 'string')
+            .map((x) => normalizePropertyTypeFilterId(x))
+            .filter((x): x is string => x !== null)
         : d.propertyTypes,
-      construction:
-        Array.isArray(o.construction) &&
-        o.construction.every((c) => c === 'ready' || c === 'under_construction')
-          ? o.construction
-          : d.construction,
+      construction: Array.isArray(o.construction)
+        ? [
+            ...new Set(
+              o.construction.filter(
+                (c): c is 'new_launch' | 'ready' | 'under_construction' =>
+                  c === 'new_launch' ||
+                  c === 'ready' ||
+                  c === 'under_construction',
+              ),
+            ),
+          ]
+        : d.construction,
       listedBy: Array.isArray(o.listedBy)
-        ? o.listedBy.filter((x): x is string => typeof x === 'string')
+        ? o.listedBy
+            .filter((x): x is string => typeof x === 'string')
+            .map((x) => normalizeListedByFilterId(x))
+            .filter((x): x is string => x !== null)
         : d.listedBy,
       amenities: Array.isArray(o.amenities)
-        ? o.amenities.filter((x): x is string => typeof x === 'string')
+        ? o.amenities
+            .filter((x): x is string => typeof x === 'string')
+            .map((x) => normalizeAmenityFilterId(x))
+            .filter((x): x is string => x !== null)
         : d.amenities,
       purchaseTypes: Array.isArray(o.purchaseTypes)
-        ? o.purchaseTypes.filter((x): x is string => typeof x === 'string')
+        ? o.purchaseTypes
+            .filter((x): x is string => typeof x === 'string')
+            .map((x) => normalizePurchaseTypeFilterId(x))
+            .filter((x): x is string => x !== null)
         : d.purchaseTypes,
       propertyAges: Array.isArray(o.propertyAges)
-        ? o.propertyAges.filter((x): x is string => typeof x === 'string')
+        ? (() => {
+            const next = o.propertyAges
+              .filter((x): x is string => typeof x === 'string')
+              .map((x) => normalizePropertyAgeFilterId(x))
+              .filter((x): x is string => x !== null)
+            return next.length <= 1 ? next : [next[0]!]
+          })()
         : d.propertyAges,
       developers: Array.isArray(o.developers)
         ? o.developers.filter((x): x is string => typeof x === 'string')
@@ -102,11 +167,11 @@ export function hydrateAppliedFiltersJson(json: string): SrpAppliedFilters | nul
       facing: Array.isArray(o.facing)
         ? o.facing.filter((x): x is string => typeof x === 'string')
         : d.facing,
-      budgetMinCr: typeof o.budgetMinCr === 'number' ? o.budgetMinCr : d.budgetMinCr,
-      budgetMaxCr: typeof o.budgetMaxCr === 'number' ? o.budgetMaxCr : d.budgetMaxCr,
+      budgetMinCr,
+      budgetMaxCr,
       areaSqFtMin: typeof o.areaSqFtMin === 'number' ? o.areaSqFtMin : d.areaSqFtMin,
       areaSqFtMax: typeof o.areaSqFtMax === 'number' ? o.areaSqFtMax : d.areaSqFtMax,
-      minImageCount: typeof o.minImageCount === 'number' ? o.minImageCount : d.minImageCount,
+      mediaPreference,
       useHotspot: typeof o.useHotspot === 'boolean' ? o.useHotspot : d.useHotspot,
       upcomingOnly: typeof o.upcomingOnly === 'boolean' ? o.upcomingOnly : d.upcomingOnly,
       reraOnly: typeof o.reraOnly === 'boolean' ? o.reraOnly : d.reraOnly,

@@ -1,4 +1,5 @@
 import { ALL_HOTSPOT_AREA_IDS } from './srpAreasMock'
+import { FILTER_AMENITIES_LONG } from './srpFiltersMock'
 
 export type SrpListing = {
   id: string
@@ -17,12 +18,18 @@ export type SrpListing = {
   rera?: boolean
   /** City hotspot micro-market */
   hotspot: boolean
-  /** Under construction / launch phase */
+  /** Booking vs build vs move-in (drives Status filter). */
+  possessionStatus: 'new_launch' | 'under_construction' | 'ready'
+  /** True when not ready — used for carousels and the “New projects” quick pill. */
   upcoming: boolean
   /** For “newest” sort */
   listedAtMs: number
   /** Hotspot locality bucket (for area filter when City hotspots on) */
   areaId: string
+  /** Amenity keys from `FILTER_AMENITIES_LONG` this listing is marketed with */
+  amenityIds: string[]
+  /** Listing includes a video walkthrough / reels (mock). */
+  hasVideo: boolean
 }
 
 export type SrpRecoItem = {
@@ -48,9 +55,14 @@ const CFG = [
   '4 BHK Villa',
   '3.5 BHK Duplex',
   '2.5 BHK Apartment',
-  '4 BHK Apartment',
-  'Studio',
-  '3 BHK + Study',
+  '4 BHK Independent House',
+  '3 BHK Independent Builder Floor',
+  'Residential Plot',
+  '3 BHK Penthouse',
+  '2 BHK Duplex',
+  'Studio Apartment',
+  '1 RK Apartment',
+  '3 BHK + Study Apartment',
 ]
 
 const PROJECTS = [
@@ -86,11 +98,11 @@ const PROJECTS = [
 
 const OWNERS = [
   ['Yashsvir Singh', 'Owner'],
-  ['Priya Sharma', 'Owner'],
-  ['Rahul Mehta', 'Owner'],
-  ['Ananya Rao', 'Dealer'],
+  ['Priya Sharma', 'Agent'],
+  ['Rahul Mehta', 'Developer'],
+  ['Ananya Rao', 'Featured Agent'],
   ['Vikram Kohli', 'Owner'],
-  ['Neha Gupta', 'Owner'],
+  ['Neha Gupta', 'Agent'],
 ] as const
 
 function avatar(name: string) {
@@ -105,24 +117,41 @@ function buildListing(
 ): SrpListing {
   const main = IMG[i % IMG.length]!
   const sec = IMG[(i + 2) % IMG.length]!
-  const priceCr = 0.95 + (i % 17) * 0.35 + (i % 3) * 0.2
+  const raw = 0.95 + (i % 17) * 0.35 + (i % 3) * 0.2
+  const priceCr = Math.round(Math.min(4.95, raw) * 100) / 100
   const price = `₹${priceCr.toFixed(2)} Cr`
   const hotspot = i % 3 !== 1
-  const upcoming = i % 4 === 0 || i % 7 === 2
+  const possessionStatus =
+    i % 3 === 0 ? 'new_launch' : i % 3 === 1 ? 'under_construction' : 'ready'
+  const upcoming = possessionStatus !== 'ready'
   const [oName, oRole] = OWNERS[i % OWNERS.length]!
   const sector = `Sector ${50 + (i % 40)}`
   const areaId = ALL_HOTSPOT_AREA_IDS[i % ALL_HOTSPOT_AREA_IDS.length]!
-  const statusLine = upcoming
-    ? 'Under construction • Avg. Price/ sq.ft. ₹' +
-      (10 + (i % 8)).toFixed(1) +
-      'k'
-    : 'Ready to Move • Avg. Price/ sq.ft. ₹' + (12 + (i % 9)).toFixed(1) + 'k'
+  const amenityPool = FILTER_AMENITIES_LONG.map((o) => o.id)
+  let amenityIds = amenityPool.filter(
+    (id, idx) => (i + idx * 5 + id.length) % 4 !== 0,
+  )
+  if (amenityIds.length === 0) {
+    amenityIds = [amenityPool[i % amenityPool.length]!]
+  }
+  const imageCount = 12 + (i % 28)
+  const hasVideo = i % 2 === 0
+  const statusLine =
+    possessionStatus === 'ready'
+      ? 'Ready to Move • Avg. Price/ sq.ft. ₹' +
+        (12 + (i % 9)).toFixed(1) +
+        'k'
+      : possessionStatus === 'new_launch'
+        ? 'New launch • Avg. Price/ sq.ft. ₹' + (10 + (i % 8)).toFixed(1) + 'k'
+        : 'Under construction • Avg. Price/ sq.ft. ₹' +
+          (10 + (i % 8)).toFixed(1) +
+          'k'
 
   return {
     id: `${slug}-srp-${i + 1}`,
     imageMain: main,
     imageSecondary: sec,
-    imageCount: 12 + (i % 28),
+    imageCount,
     timeAgo: i % 5 === 0 ? '5h ago' : i % 3 === 0 ? '1d ago' : '3d ago',
     statusLine,
     configuration: CFG[i % CFG.length]!,
@@ -138,9 +167,12 @@ function buildListing(
     verified: i % 4 !== 2,
     rera: i % 5 !== 3,
     hotspot,
+    possessionStatus,
     upcoming,
     listedAtMs: Date.now() - i * 86400000 * (1 + (i % 3)),
     areaId,
+    amenityIds,
+    hasVideo,
   }
 }
 
