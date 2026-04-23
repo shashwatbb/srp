@@ -197,16 +197,12 @@ function budgetRangesClose(
   return Math.abs(minA - minB) < eps && Math.abs(maxA - maxB) < eps
 }
 
-function budgetRangeFromChipIds(
-  ids: Set<string>,
+function budgetRangeFromChipId(
+  id: string | null,
 ): { min: number; max: number } | null {
-  if (ids.size === 0) return null
-  const chips = BUDGET_QUICK_CHIPS.filter((c) => ids.has(c.id))
-  if (chips.length === 0) return null
-  return {
-    min: Math.min(...chips.map((c) => c.min)),
-    max: Math.max(...chips.map((c) => c.max)),
-  }
+  if (!id) return null
+  const chip = BUDGET_QUICK_CHIPS.find((c) => c.id === id)
+  return chip ? { min: chip.min, max: chip.max } : null
 }
 
 function valueFromTrackClientY(clientY: number, rect: DOMRect): number {
@@ -514,35 +510,27 @@ function BudgetFilterPanel({
     return { min: d.budgetMinCr, max: d.budgetMaxCr }
   }, [])
 
-  const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(
-    () => new Set(),
-  )
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null)
 
-  /** Slider (or other) edits outside the union of selected chips — drop chip highlights */
+  /** Slider edits that no longer match the highlighted chip — clear chip highlight */
   useEffect(() => {
-    setSelectedChipIds((prev) => {
-      if (prev.size === 0) return prev
-      const fromChips = budgetRangeFromChipIds(prev)
-      if (!fromChips) return new Set()
-      if (!budgetRangesClose(fromChips.min, fromChips.max, minCr, maxCr)) {
-        return new Set()
-      }
+    setSelectedChipId((prev) => {
+      if (prev === null) return prev
+      const r = budgetRangeFromChipId(prev)
+      if (!r) return null
+      if (!budgetRangesClose(r.min, r.max, minCr, maxCr)) return null
       return prev
     })
   }, [minCr, maxCr])
 
-  const toggleChip = (chip: (typeof BUDGET_QUICK_CHIPS)[number]) => {
-    setSelectedChipIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(chip.id)) next.delete(chip.id)
-      else next.add(chip.id)
-      const r = budgetRangeFromChipIds(next)
-      if (next.size === 0) {
+  const selectChip = (chip: (typeof BUDGET_QUICK_CHIPS)[number]) => {
+    setSelectedChipId((prev) => {
+      if (prev === chip.id) {
         onChange(defaultBudget.min, defaultBudget.max)
-      } else if (r) {
-        onChange(r.min, r.max)
+        return null
       }
-      return next
+      onChange(chip.min, chip.max)
+      return chip.id
     })
   }
 
@@ -564,12 +552,12 @@ function BudgetFilterPanel({
       </p>
       <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch">
         {BUDGET_QUICK_CHIPS.map((chip) => {
-          const selected = selectedChipIds.has(chip.id)
+          const selected = selectedChipId === chip.id
           return (
             <button
               key={chip.id}
               type="button"
-              onClick={() => toggleChip(chip)}
+              onClick={() => selectChip(chip)}
               className={[
                 'min-w-0 rounded-2xl border px-4 py-3.5 text-left text-[12px] font-medium leading-tight transition-all duration-200 ease-out active:opacity-90',
                 selected
@@ -622,16 +610,12 @@ function areaRangesClose(
   return Math.abs(minA - minB) < eps && Math.abs(maxA - maxB) < eps
 }
 
-function areaRangeFromChipIds(
-  ids: Set<string>,
+function areaRangeFromChipId(
+  id: string | null,
 ): { min: number; max: number } | null {
-  if (ids.size === 0) return null
-  const chips = SQFT_QUICK_CHIPS.filter((c) => ids.has(c.id))
-  if (chips.length === 0) return null
-  return {
-    min: Math.min(...chips.map((c) => c.min)),
-    max: Math.max(...chips.map((c) => c.max)),
-  }
+  if (!id) return null
+  const chip = SQFT_QUICK_CHIPS.find((c) => c.id === id)
+  return chip ? { min: chip.min, max: chip.max } : null
 }
 
 function valueFromTrackClientYSqft(clientY: number, rect: DOMRect): number {
@@ -905,34 +889,26 @@ function AreaFilterPanel({
     return { min: d.areaSqFtMin, max: d.areaSqFtMax }
   }, [])
 
-  const [selectedChipIds, setSelectedChipIds] = useState<Set<string>>(
-    () => new Set(),
-  )
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null)
 
   useEffect(() => {
-    setSelectedChipIds((prev) => {
-      if (prev.size === 0) return prev
-      const fromChips = areaRangeFromChipIds(prev)
-      if (!fromChips) return new Set()
-      if (!areaRangesClose(fromChips.min, fromChips.max, minSq, maxSq)) {
-        return new Set()
-      }
+    setSelectedChipId((prev) => {
+      if (prev === null) return prev
+      const r = areaRangeFromChipId(prev)
+      if (!r) return null
+      if (!areaRangesClose(r.min, r.max, minSq, maxSq)) return null
       return prev
     })
   }, [minSq, maxSq])
 
-  const toggleChip = (chip: (typeof SQFT_QUICK_CHIPS)[number]) => {
-    setSelectedChipIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(chip.id)) next.delete(chip.id)
-      else next.add(chip.id)
-      const r = areaRangeFromChipIds(next)
-      if (next.size === 0) {
+  const selectChip = (chip: (typeof SQFT_QUICK_CHIPS)[number]) => {
+    setSelectedChipId((prev) => {
+      if (prev === chip.id) {
         onChange(defaultArea.min, defaultArea.max)
-      } else if (r) {
-        onChange(r.min, r.max)
+        return null
       }
-      return next
+      onChange(chip.min, chip.max)
+      return chip.id
     })
   }
 
@@ -954,12 +930,12 @@ function AreaFilterPanel({
       </p>
       <div className="grid w-full grid-cols-2 gap-x-3 gap-y-3 self-stretch">
         {SQFT_QUICK_CHIPS.map((chip) => {
-          const selected = selectedChipIds.has(chip.id)
+          const selected = selectedChipId === chip.id
           return (
             <button
               key={chip.id}
               type="button"
-              onClick={() => toggleChip(chip)}
+              onClick={() => selectChip(chip)}
               className={[
                 'min-w-0 rounded-2xl border px-4 py-3.5 text-left text-[12px] font-medium leading-tight transition-all duration-200 ease-out active:opacity-90',
                 selected
@@ -1772,7 +1748,7 @@ export function SrpFiltersSheet({
             onClick={(e) => e.stopPropagation()}
           >
             <header
-              className="flex shrink-0 items-center gap-3 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
+              className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E8E8E8] px-3 pb-3 pt-3"
               style={{
                 paddingTop: 'max(10px, env(safe-area-inset-top, 0px))',
               }}
@@ -1793,6 +1769,13 @@ export function SrpFiltersSheet({
                   Filter
                 </h1>
               </div>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="shrink-0 px-1 py-2 text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
+              >
+                Clear all
+              </button>
             </header>
 
             <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
@@ -1811,33 +1794,24 @@ export function SrpFiltersSheet({
                 paddingBottom: 'max(14px, env(safe-area-inset-bottom, 0px))',
               }}
             >
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="min-w-0 flex-1 rounded-[14px] border border-[#D8D8D8] bg-white py-3.5 text-[15px] font-semibold text-[#212121] transition-[background-color,border-color] active:bg-[#F4F4F4]"
-                >
-                  Clear filters
-                </button>
-                <button
-                  type="button"
-                  onClick={apply}
-                  disabled={!applyCtaActive}
-                  className={[
-                    'min-w-0 flex-1 rounded-[14px] py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
-                    applyCtaActive
-                      ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
-                      : 'cursor-not-allowed text-[#454545] opacity-80',
-                  ].join(' ')}
-                  style={
-                    applyCtaActive
-                      ? undefined
-                      : { backgroundColor: FS.applyBg, boxShadow: 'none' }
-                  }
-                >
-                  Apply
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={apply}
+                disabled={!applyCtaActive}
+                className={[
+                  'w-full rounded-[14px] py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
+                  applyCtaActive
+                    ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
+                    : 'cursor-not-allowed text-[#454545] opacity-80',
+                ].join(' ')}
+                style={
+                  applyCtaActive
+                    ? undefined
+                    : { backgroundColor: FS.applyBg, boxShadow: 'none' }
+                }
+              >
+                Apply
+              </button>
             </footer>
           </div>
         </div>
