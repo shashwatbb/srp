@@ -584,6 +584,44 @@ const PROPERTY_TYPE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
     hint: o.hint,
   }))
 
+const CONSTRUCTION_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_CONSTRUCTION_OPTIONS.map((o) => ({
+    id: o.id,
+    label: o.label,
+  }))
+
+const LISTED_BY_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_LISTED_BY_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+
+const AMENITIES_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_AMENITIES_LONG.map((o) => ({ id: o.id, label: o.label }))
+
+const PURCHASE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_PURCHASE_TYPE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+
+const PROPERTY_AGE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_PROPERTY_AGE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+
+const DEVELOPER_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_DEVELOPER_OPTIONS.map((name) => ({ id: name, label: name }))
+
+const FURNISHING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_FURNISHING_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+
+const FACING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_FACING_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+
+const PHOTOS_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_PHOTOS_OPTIONS.map((o) => ({
+    id: String(o.id),
+    label: o.label,
+  }))
+
+const RERA_CHECKBOX_ITEMS: CheckboxFilterItem[] = [
+  { id: 'all', label: 'Show all' },
+  { id: 'rera', label: 'RERA-registered only' },
+]
+
 /** BHK / Type: checkbox column, dividers, optional hint line, tap pulse on title */
 function CheckboxFilterColumn({
   items,
@@ -685,6 +723,40 @@ function CheckboxFilterColumn({
   )
 }
 
+/** Long lists: same checkbox column; “Show more” expands once (no “Show less”). */
+function ExpandableCheckboxColumn({
+  items,
+  selectedIds,
+  onToggle,
+  initial = 5,
+}: {
+  items: readonly CheckboxFilterItem[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+  initial?: number
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? items : items.slice(0, initial)
+  return (
+    <div>
+      <CheckboxFilterColumn
+        items={visible}
+        selectedIds={selectedIds}
+        onToggle={onToggle}
+      />
+      {!expanded && items.length > initial ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-4 px-1 text-left text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
+        >
+          Show more
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function DualSqftSliders({
   minSq,
   maxSq,
@@ -775,44 +847,6 @@ function DualSqftSliders({
           />
         </label>
       </div>
-    </div>
-  )
-}
-
-function ExpandableOptionList({
-  items,
-  selected,
-  onToggle,
-  initial = 5,
-}: {
-  items: { id: string; label: string }[]
-  selected: string[]
-  onToggle: (id: string) => void
-  initial?: number
-}) {
-  const [more, setMore] = useState(false)
-  const slice = more ? items : items.slice(0, initial)
-  return (
-    <div>
-      <div className="overflow-hidden rounded-xl border border-[#E8E8E8] bg-white">
-        {slice.map((it) => (
-          <FilterOptionRow
-            key={it.id}
-            label={it.label}
-            selected={selected.includes(it.id)}
-            onClick={() => onToggle(it.id)}
-          />
-        ))}
-      </div>
-      {items.length > initial ? (
-        <button
-          type="button"
-          onClick={() => setMore((v) => !v)}
-          className="mt-4 px-1 text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
-        >
-          {more ? 'Show less' : 'Show more'}
-        </button>
-      ) : null}
     </div>
   )
 }
@@ -952,20 +986,20 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="construction" />
-        <div className={listWrap}>
-          {FILTER_CONSTRUCTION_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.construction.includes(o.id)}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  construction: toggleInArray(d.construction, o.id),
-                }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={CONSTRUCTION_CHECKBOX_ITEMS}
+            selectedIds={draft.construction}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                construction: toggleInArray(
+                  d.construction,
+                  id as 'ready' | 'under_construction',
+                ),
+              }))
+            }
+          />
         </div>
       </div>
     )
@@ -975,20 +1009,17 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="listedBy" />
-        <div className={listWrap}>
-          {FILTER_LISTED_BY_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.listedBy.includes(o.id)}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  listedBy: toggleInArray(d.listedBy, o.id),
-                }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={LISTED_BY_CHECKBOX_ITEMS}
+            selectedIds={draft.listedBy}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                listedBy: toggleInArray(d.listedBy, id),
+              }))
+            }
+          />
         </div>
       </div>
     )
@@ -999,9 +1030,9 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="amenities" />
         <div className="mt-2">
-          <ExpandableOptionList
-            items={[...FILTER_AMENITIES_LONG]}
-            selected={draft.amenities}
+          <ExpandableCheckboxColumn
+            items={AMENITIES_CHECKBOX_ITEMS}
+            selectedIds={draft.amenities}
             onToggle={(id) =>
               setDraft((d) => ({
                 ...d,
@@ -1090,20 +1121,17 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="purchaseType" />
-        <div className={listWrap}>
-          {FILTER_PURCHASE_TYPE_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.purchaseTypes.includes(o.id)}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  purchaseTypes: toggleInArray(d.purchaseTypes, o.id),
-                }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={PURCHASE_CHECKBOX_ITEMS}
+            selectedIds={draft.purchaseTypes}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                purchaseTypes: toggleInArray(d.purchaseTypes, id),
+              }))
+            }
+          />
         </div>
       </div>
     )
@@ -1114,9 +1142,9 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="propertyAge" />
         <div className="mt-2">
-          <ExpandableOptionList
-            items={[...FILTER_PROPERTY_AGE_OPTIONS]}
-            selected={draft.propertyAges}
+          <ExpandableCheckboxColumn
+            items={PROPERTY_AGE_CHECKBOX_ITEMS}
+            selectedIds={draft.propertyAges}
             onToggle={(id) =>
               setDraft((d) => ({
                 ...d,
@@ -1135,12 +1163,9 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="developer" />
         <div className="mt-2">
-          <ExpandableOptionList
-            items={FILTER_DEVELOPER_OPTIONS.map((d) => ({
-              id: d,
-              label: d,
-            }))}
-            selected={draft.developers}
+          <ExpandableCheckboxColumn
+            items={DEVELOPER_CHECKBOX_ITEMS}
+            selectedIds={draft.developers}
             onToggle={(id) =>
               setDraft((d) => ({
                 ...d,
@@ -1158,20 +1183,17 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="furnishing" />
-        <div className={listWrap}>
-          {FILTER_FURNISHING_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.furnishing.includes(o.id)}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  furnishing: toggleInArray(d.furnishing, o.id),
-                }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={FURNISHING_CHECKBOX_ITEMS}
+            selectedIds={draft.furnishing}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                furnishing: toggleInArray(d.furnishing, id),
+              }))
+            }
+          />
         </div>
       </div>
     )
@@ -1182,9 +1204,9 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="facing" />
         <div className="mt-2">
-          <ExpandableOptionList
-            items={[...FILTER_FACING_OPTIONS]}
-            selected={draft.facing}
+          <ExpandableCheckboxColumn
+            items={FACING_CHECKBOX_ITEMS}
+            selectedIds={draft.facing}
             onToggle={(id) =>
               setDraft((d) => ({
                 ...d,
@@ -1202,17 +1224,14 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="photos" />
-        <div className={listWrap}>
-          {FILTER_PHOTOS_OPTIONS.map((o) => (
-            <FilterOptionRow
-              key={o.id}
-              label={o.label}
-              selected={draft.minImageCount === o.id}
-              onClick={() =>
-                setDraft((d) => ({ ...d, minImageCount: o.id }))
-              }
-            />
-          ))}
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={PHOTOS_CHECKBOX_ITEMS}
+            selectedIds={[String(draft.minImageCount)]}
+            onToggle={(id) =>
+              setDraft((d) => ({ ...d, minImageCount: Number(id) }))
+            }
+          />
         </div>
       </div>
     )
@@ -1222,19 +1241,15 @@ function RightPanel({
     return (
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="rera" />
-        <div className={listWrap}>
-          <FilterOptionRow
-            label="Show all"
-            selected={!draft.reraOnly}
-            onClick={() =>
-              setDraft((d) => ({ ...d, reraOnly: false }))
-            }
-          />
-          <FilterOptionRow
-            label="RERA-registered only"
-            selected={draft.reraOnly}
-            onClick={() =>
-              setDraft((d) => ({ ...d, reraOnly: true }))
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={RERA_CHECKBOX_ITEMS}
+            selectedIds={draft.reraOnly ? ['rera'] : ['all']}
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                reraOnly: id === 'rera',
+              }))
             }
           />
         </div>
