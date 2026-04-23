@@ -105,6 +105,9 @@ function mergeAppliedChipOrder(
 /** Mild elevation on filter chips */
 const FILTER_PILL_SHADOW = 'shadow-[0_1px_3px_rgba(0,0,0,0.07)]'
 
+/** Rounded controls — 12px corners (not pill / not `rounded-full`) */
+const FILTER_PILL_RADIUS = 'rounded-[12px]'
+
 /** Applied filter chips + active filter pill — lavender fill, primary purple label */
 const FILTER_PILL_ACTIVE_PURPLE =
   'border-[#5B22DE] bg-[#F3ECFF] text-[#5B22DE]'
@@ -742,7 +745,7 @@ export function SrpPage({
             <div
               key={FILTER_MAIN.id}
               className={[
-                'inline-flex shrink-0 items-stretch overflow-hidden rounded-full border',
+                `inline-flex shrink-0 items-stretch overflow-hidden border ${FILTER_PILL_RADIUS}`,
                 FILTER_PILL_SHADOW,
                 filtersPillActive
                   ? FILTER_PILL_ACTIVE_PURPLE
@@ -788,7 +791,7 @@ export function SrpPage({
               <div
                 key={chip.id}
                 className={[
-                  'inline-flex max-w-[220px] shrink-0 items-center gap-0.5 rounded-full border pl-2.5 pr-0.5 text-xs font-semibold leading-4',
+                  `inline-flex max-w-[220px] shrink-0 items-center gap-0.5 border pl-2.5 pr-0.5 text-xs font-semibold leading-4 ${FILTER_PILL_RADIUS}`,
                   FILTER_PILL_SHADOW,
                   APPLIED_FILTER_CHIP_ACTIVE,
                 ].join(' ')}
@@ -803,7 +806,7 @@ export function SrpPage({
                     bumpListRefresh()
                     setAppliedFilters((f) => chip.clear(f))
                   }}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[15px] font-light leading-none text-[#5B22DE] active:bg-[#E8DEF9]"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[15px] font-light leading-none text-[#5B22DE] active:bg-[#E8DEF9]"
                   aria-label={`Remove ${chip.label}`}
                 >
                   ×
@@ -817,7 +820,7 @@ export function SrpPage({
                 type="button"
                 onClick={openFiltersSheet}
                 className={[
-                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-2 text-xs font-medium leading-4',
+                  `inline-flex shrink-0 items-center gap-1 border px-3 py-2 text-xs font-medium leading-4 ${FILTER_PILL_RADIUS}`,
                   FILTER_PILL_SHADOW,
                   'border-[#DDDDDD] bg-white text-[#222222]',
                 ].join(' ')}
@@ -843,7 +846,7 @@ export function SrpPage({
                 type="button"
                 onClick={toggleHotspot}
                 className={[
-                  'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium leading-4 transition-colors duration-200',
+                  `inline-flex shrink-0 items-center gap-1.5 border px-3 py-2 text-xs font-medium leading-4 transition-colors duration-200 ${FILTER_PILL_RADIUS}`,
                   FILTER_PILL_SHADOW,
                   filterHotspot
                     ? FILTER_PILL_ACTIVE_PURPLE
@@ -866,7 +869,7 @@ export function SrpPage({
                   onClick={() => setAreaSheetOpen(true)}
                   tabIndex={filterHotspot ? 0 : -1}
                   className={[
-                    'inline-flex w-[132px] shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full border px-3 py-2 text-xs font-medium leading-4 transition-colors duration-200',
+                    `inline-flex w-[132px] shrink-0 items-center justify-center gap-1 whitespace-nowrap border px-3 py-2 text-xs font-medium leading-4 transition-colors duration-200 ${FILTER_PILL_RADIUS}`,
                     FILTER_PILL_SHADOW,
                     areasSubsetActive
                       ? FILTER_PILL_ACTIVE_PURPLE
@@ -891,7 +894,7 @@ export function SrpPage({
               type="button"
               onClick={toggleUpcoming}
               className={[
-                'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium leading-4 transition-colors',
+                `inline-flex shrink-0 items-center gap-1.5 border px-3 py-2 text-xs font-medium leading-4 transition-colors ${FILTER_PILL_RADIUS}`,
                 FILTER_PILL_SHADOW,
                 filterUpcoming
                   ? FILTER_PILL_ACTIVE_PURPLE
@@ -955,7 +958,7 @@ export function SrpPage({
               <button
                 type="button"
                 onClick={clearAll}
-                className="mt-4 rounded-full border border-[#5B22DE] bg-white px-4 py-2 text-xs font-semibold text-[#5B22DE] active:bg-[#F3ECFF]"
+                className={`mt-4 border border-[#5B22DE] bg-white px-4 py-2 text-xs font-semibold text-[#5B22DE] active:bg-[#F3ECFF] ${FILTER_PILL_RADIUS}`}
               >
                 Clear filters
               </button>
