@@ -1489,7 +1489,7 @@ export function SrpFiltersSheet({
             onClick={apply}
             disabled={!applyCtaActive}
             className={[
-              'min-w-[168px] shrink-0 rounded-[12px] px-14 py-2.5 text-[14px] font-semibold transition-[background-color,color,opacity]',
+              'min-w-[220px] shrink-0 rounded-[14px] px-16 py-3.5 text-[15px] font-semibold transition-[background-color,color,opacity]',
               applyCtaActive
                 ? 'bg-[#5B22DE] text-white active:bg-[#4C1BB8]'
                 : 'cursor-not-allowed text-[#454545] opacity-80',
