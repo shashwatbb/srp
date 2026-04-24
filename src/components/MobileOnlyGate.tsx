@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import mobileOnlyMascot from '../assets/mobile-only-mascot.png'
 
 /** Full-viewport shell for the app on supported (mobile) viewports only. */
 export function MobileAppShell({ children }: { children: ReactNode }) {
@@ -28,9 +29,23 @@ export function MobileOnlyMessage() {
         backgroundPosition: 'center top',
       }}
     >
-      <main className="w-full max-w-sm text-center">
+      <main className="mobile-only-reveal flex w-full max-w-sm flex-col items-center text-center">
+        <img
+          src={mobileOnlyMascot}
+          alt=""
+          width={140}
+          height={140}
+          className="mb-6 h-[140px] w-[140px] max-h-[140px] max-w-[140px] shrink-0 object-contain select-none"
+          draggable={false}
+          decoding="async"
+          fetchPriority="high"
+          aria-hidden
+        />
         <p className="text-balance text-2xl font-medium leading-snug tracking-[-0.02em] text-slate-800 sm:text-[1.625rem]">
           Only for mobile, bruh x
+        </p>
+        <p className="mt-5 text-[15px] font-medium leading-snug tracking-tight text-slate-600">
+          Shortcut: Command + Option + i
         </p>
       </main>
     </div>

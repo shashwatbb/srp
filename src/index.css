@@ -23,7 +23,33 @@
   }
 }
 
+@keyframes mobile-only-reveal {
+  from {
+    opacity: 0;
+    filter: blur(16px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
 @layer utilities {
+  .mobile-only-reveal {
+    animation: mobile-only-reveal 0.75s cubic-bezier(0.22, 1, 0.32, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-only-reveal {
+      animation: none;
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+  }
+
   .srp-skeleton-shimmer {
     animation: srp-skeleton-shimmer 1.35s ease-in-out infinite;
   }
