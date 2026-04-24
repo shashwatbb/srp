@@ -26,6 +26,7 @@ import {
   YMAL_PROPERTY_SCROLL_PREVIEW,
   type SrpYouMayAlsoLikeTab,
 } from './SrpYouMayAlsoLikeCard'
+import type { FilterCategoryId } from '../../data/srpFiltersMock'
 import {
   readStoredAppliedFilters,
   writeStoredAppliedFilters,
@@ -36,6 +37,14 @@ import {
   countActiveSrpFilterDimensions,
   createDefaultSrpAppliedFilters,
   getAppliedFilterChips,
+  getSrpAreaShortcutCaption,
+  getSrpBudgetShortcutCaption,
+  getSrpBhkShortcutCaption,
+  getSrpStatusShortcutCaption,
+  isSrpAreaShortcutActive,
+  isSrpBudgetShortcutActive,
+  isSrpBhkShortcutActive,
+  isSrpStatusShortcutActive,
   type AppliedFilterChip,
   type SrpAppliedFilters,
 } from './srpFilterModel'
@@ -48,15 +57,47 @@ type SrpPageProps = {
   onOpenProjectSearch: (currentQuery: string) => void
 }
 
-const FILTERS: { id: string; label: string }[] = [
-  { id: 'f', label: 'Filters' },
-  { id: 'b', label: 'Budget' },
-  { id: 'bhk', label: 'BHK type' },
-  { id: 'bua', label: 'Built up area' },
-  { id: 'cs', label: 'Construction status' },
+const FILTER_MAIN = { id: 'f', label: 'Filters' } as const
+
+const FILTER_SHEET_SHORTCUTS: {
+  id: string
+  sheetTab: FilterCategoryId
+}[] = [
+  { id: 'b', sheetTab: 'budget' },
+  { id: 'bhk', sheetTab: 'bhk' },
+  { id: 'bua', sheetTab: 'area' },
+  { id: 'cs', sheetTab: 'construction' },
 ]
-const FILTER_MAIN = FILTERS[0]!
-const FILTER_SHEET_SHORTCUTS = FILTERS.slice(1)
+
+function sheetShortcutActive(tab: FilterCategoryId, f: SrpAppliedFilters) {
+  switch (tab) {
+    case 'budget':
+      return isSrpBudgetShortcutActive(f)
+    case 'bhk':
+      return isSrpBhkShortcutActive(f)
+    case 'area':
+      return isSrpAreaShortcutActive(f)
+    case 'construction':
+      return isSrpStatusShortcutActive(f)
+    default:
+      return false
+  }
+}
+
+function sheetShortcutCaption(tab: FilterCategoryId, f: SrpAppliedFilters) {
+  switch (tab) {
+    case 'budget':
+      return getSrpBudgetShortcutCaption(f)
+    case 'bhk':
+      return getSrpBhkShortcutCaption(f)
+    case 'area':
+      return getSrpAreaShortcutCaption(f)
+    case 'construction':
+      return getSrpStatusShortcutCaption(f)
+    default:
+      return 'Filters'
+  }
+}
 
 const INITIAL_VISIBLE = 10
 const VIEW_MORE_STEP = 10
@@ -343,8 +384,16 @@ export function SrpPage({
     return stored ?? createDefaultSrpAppliedFilters()
   })
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false)
+  const [filtersSheetFocus, setFiltersSheetFocus] =
+    useState<FilterCategoryId>('budget')
   const openFiltersSheet = useCallback(() => {
     gentleHaptic()
+    setFiltersSheetFocus('budget')
+    setFiltersSheetOpen(true)
+  }, [])
+  const openFiltersSheetTo = useCallback((tab: FilterCategoryId) => {
+    gentleHaptic()
+    setFiltersSheetFocus(tab)
     setFiltersSheetOpen(true)
   }, [])
   const [areaSheetOpen, setAreaSheetOpen] = useState(false)
@@ -752,21 +801,32 @@ export function SrpPage({
               </div>
             ))}
 
-            {FILTER_SHEET_SHORTCUTS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={openFiltersSheet}
-                className={[
-                  `inline-flex shrink-0 items-center gap-1 border px-3 py-2 text-xs font-medium leading-4 ${FILTER_PILL_RADIUS}`,
-                  FILTER_PILL_SHADOW,
-                  'border-[#DDDDDD] bg-white text-[#222222]',
-                ].join(' ')}
-              >
-                {f.label}
-                <ChevronDown className="text-[#6A6A6A]" />
-              </button>
-            ))}
+            {FILTER_SHEET_SHORTCUTS.map((f) => {
+              const shortcutOn = sheetShortcutActive(f.sheetTab, appliedFilters)
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => openFiltersSheetTo(f.sheetTab)}
+                  className={[
+                    `inline-flex min-w-0 max-w-[200px] shrink-0 items-center gap-1 border px-3 py-2 text-xs font-medium leading-4 ${FILTER_PILL_RADIUS}`,
+                    FILTER_PILL_SHADOW,
+                    shortcutOn
+                      ? FILTER_PILL_ACTIVE_PURPLE
+                      : 'border-[#DDDDDD] bg-white text-[#222222]',
+                  ].join(' ')}
+                >
+                  <span className="min-w-0 truncate">
+                    {sheetShortcutCaption(f.sheetTab, appliedFilters)}
+                  </span>
+                  <ChevronDown
+                    className={
+                      shortcutOn ? 'shrink-0 text-[#5B22DE]/70' : 'shrink-0 text-[#6A6A6A]'
+                    }
+                  />
+                </button>
+              )
+            })}
           </div>
 
           <div
@@ -957,6 +1017,7 @@ export function SrpPage({
         onClose={handleFiltersSheetClose}
         applied={appliedFilters}
         onApply={handleFilterSheetApply}
+        initialFocusCategory={filtersSheetFocus}
       />
       </div>
     </div>

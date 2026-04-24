@@ -429,7 +429,10 @@ export type AppliedFilterChip = {
   clear: (f: SrpAppliedFilters) => SrpAppliedFilters
 }
 
-/** Removable chips for the SRP filter strip (one row after the main Filters CTA). */
+/**
+ * Removable chips for the SRP filter strip (after the main Filters CTA).
+ * Budget, BHK, built-up area, and construction status use shortcut pills instead.
+ */
 export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[] {
   const chips: AppliedFilterChip[] = []
 
@@ -474,43 +477,6 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
     })
   }
 
-  const budgetLo = f.budgetMinCr > DEF.budgetMinCr + 0.01
-  const budgetHi = f.budgetMaxCr < DEF.budgetMaxCr - 0.01
-  if (budgetLo || budgetHi) {
-    const fmtBudgetChip = (cr: number) =>
-      cr < 1 ? `₹${Math.round(cr * 100)}L` : `₹${fmtCr(cr)}Cr`
-    let label = 'Budget'
-    if (budgetLo && budgetHi) {
-      label = `${fmtBudgetChip(f.budgetMinCr)} – ${fmtBudgetChip(f.budgetMaxCr)}`
-    } else if (budgetLo) {
-      label = `Min ${fmtBudgetChip(f.budgetMinCr)}`
-    } else {
-      label = `Max ${fmtBudgetChip(f.budgetMaxCr)}`
-    }
-    chips.push({
-      id: 'budget',
-      label,
-      clear: (x) => {
-        const n = cloneSrpAppliedFilters(x)
-        n.budgetMinCr = DEF.budgetMinCr
-        n.budgetMaxCr = DEF.budgetMaxCr
-        return n
-      },
-    })
-  }
-
-  if (f.bhk.length > 0) {
-    chips.push({
-      id: 'bhk',
-      label: joinOptionLabels([...f.bhk].sort(), BHK_LABEL),
-      clear: (x) => {
-        const n = cloneSrpAppliedFilters(x)
-        n.bhk = []
-        return n
-      },
-    })
-  }
-
   if (f.propertyTypes.length > 0) {
     chips.push({
       id: 'propertyTypes',
@@ -518,22 +484,6 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
       clear: (x) => {
         const n = cloneSrpAppliedFilters(x)
         n.propertyTypes = []
-        return n
-      },
-    })
-  }
-
-  if (!f.upcomingOnly && f.construction.length > 0) {
-    const label = joinOptionLabels(
-      [...f.construction].sort(),
-      CONSTRUCTION_LABEL,
-    )
-    chips.push({
-      id: 'construction',
-      label: label || 'Status',
-      clear: (x) => {
-        const n = cloneSrpAppliedFilters(x)
-        n.construction = []
         return n
       },
     })
@@ -561,19 +511,6 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
       clear: (x) => {
         const n = cloneSrpAppliedFilters(x)
         n.amenities = []
-        return n
-      },
-    })
-  }
-
-  if (f.areaSqFtMin > DEF.areaSqFtMin || f.areaSqFtMax < DEF.areaSqFtMax) {
-    chips.push({
-      id: 'builtUp',
-      label: `${f.areaSqFtMin.toLocaleString()}–${f.areaSqFtMax.toLocaleString()} sq.ft.`,
-      clear: (x) => {
-        const n = cloneSrpAppliedFilters(x)
-        n.areaSqFtMin = DEF.areaSqFtMin
-        n.areaSqFtMax = DEF.areaSqFtMax
         return n
       },
     })
@@ -666,4 +603,55 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
   }
 
   return chips
+}
+
+function fmtBudgetRangePart(cr: number): string {
+  return cr < 1 ? `₹${Math.round(cr * 100)}L` : `₹${fmtCr(cr)}Cr`
+}
+
+/** Budget / BHK / built-up / status use the sheet shortcut row, not removable strip chips. */
+export function isSrpBudgetShortcutActive(f: SrpAppliedFilters): boolean {
+  return f.budgetMinCr > DEF.budgetMinCr + 0.01 || f.budgetMaxCr < DEF.budgetMaxCr - 0.01
+}
+
+export function getSrpBudgetShortcutCaption(f: SrpAppliedFilters): string {
+  const budgetLo = f.budgetMinCr > DEF.budgetMinCr + 0.01
+  const budgetHi = f.budgetMaxCr < DEF.budgetMaxCr - 0.01
+  if (!budgetLo && !budgetHi) return 'Budget'
+  if (budgetLo && budgetHi) {
+    return `${fmtBudgetRangePart(f.budgetMinCr)} – ${fmtBudgetRangePart(f.budgetMaxCr)}`
+  }
+  if (budgetLo) return `Min ${fmtBudgetRangePart(f.budgetMinCr)}`
+  return `Max ${fmtBudgetRangePart(f.budgetMaxCr)}`
+}
+
+export function isSrpBhkShortcutActive(f: SrpAppliedFilters): boolean {
+  return f.bhk.length > 0
+}
+
+export function getSrpBhkShortcutCaption(f: SrpAppliedFilters): string {
+  if (f.bhk.length === 0) return 'BHK'
+  return joinOptionLabels([...f.bhk].sort(), BHK_LABEL)
+}
+
+export function isSrpAreaShortcutActive(f: SrpAppliedFilters): boolean {
+  return f.areaSqFtMin > DEF.areaSqFtMin || f.areaSqFtMax < DEF.areaSqFtMax
+}
+
+export function getSrpAreaShortcutCaption(f: SrpAppliedFilters): string {
+  if (!isSrpAreaShortcutActive(f)) return 'Area'
+  return `${f.areaSqFtMin.toLocaleString()}–${f.areaSqFtMax.toLocaleString()} sq.ft.`
+}
+
+export function isSrpStatusShortcutActive(f: SrpAppliedFilters): boolean {
+  return !f.upcomingOnly && f.construction.length > 0
+}
+
+export function getSrpStatusShortcutCaption(f: SrpAppliedFilters): string {
+  if (f.upcomingOnly || f.construction.length === 0) return 'Status'
+  const label = joinOptionLabels(
+    [...f.construction].sort(),
+    CONSTRUCTION_LABEL,
+  )
+  return label || 'Status'
 }

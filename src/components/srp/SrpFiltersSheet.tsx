@@ -44,6 +44,8 @@ type SrpFiltersSheetProps = {
   onClose: () => void
   applied: SrpAppliedFilters
   onApply: (next: SrpAppliedFilters) => void
+  /** Left-rail tab when the sheet opens (from shortcut row or main Filters). */
+  initialFocusCategory?: FilterCategoryId
   /** Fires synchronously when close slide starts — use to sync background zoom with sheet */
   onCloseMotionStart?: () => void
 }
@@ -1574,6 +1576,7 @@ export function SrpFiltersSheet({
   onClose,
   applied,
   onApply,
+  initialFocusCategory = 'budget',
   onCloseMotionStart,
 }: SrpFiltersSheetProps) {
   const [active, setActive] = useState<FilterCategoryId>('budget')
@@ -1656,10 +1659,10 @@ export function SrpFiltersSheet({
     if (open) {
       /* eslint-disable react-hooks/set-state-in-effect -- draft mirrors `applied` each time sheet opens */
       setDraft(cloneSrpAppliedFilters(applied))
-      setActive('budget')
+      setActive(initialFocusCategory)
       /* eslint-enable react-hooks/set-state-in-effect */
     }
-  }, [open, applied])
+  }, [open, applied, initialFocusCategory])
 
   useEffect(() => {
     if (!present) return
@@ -1707,9 +1710,15 @@ export function SrpFiltersSheet({
     [draft, applied],
   )
 
+  const clearAllDisabled = useMemo(
+    () => areSrpAppliedFiltersEqual(draft, createDefaultSrpAppliedFilters()),
+    [draft],
+  )
+
   if (!present) return null
 
   const clearAll = () => {
+    if (clearAllDisabled) return
     setDraft(createDefaultSrpAppliedFilters())
   }
 
@@ -1784,7 +1793,13 @@ export function SrpFiltersSheet({
               <button
                 type="button"
                 onClick={clearAll}
-                className="shrink-0 px-1 py-2 text-[13px] font-semibold text-[#5B22DE] active:opacity-70"
+                disabled={clearAllDisabled}
+                className={[
+                  'shrink-0 px-1 py-2 text-[13px] font-semibold transition-opacity',
+                  clearAllDisabled
+                    ? 'cursor-not-allowed text-[#9CA3AF] opacity-60'
+                    : 'text-[#5B22DE] active:opacity-70',
+                ].join(' ')}
               >
                 Clear all
               </button>
