@@ -246,6 +246,22 @@ function SrpFiltersPillIcon() {
   )
 }
 
+/** Sort icon for SRP filter row (icon-only pill) */
+function SrpSortPillIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 256 256"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z" />
+    </svg>
+  )
+}
+
 function SrpBottomNav() {
   return (
     <nav
@@ -729,6 +745,18 @@ export function SrpPage({
             className="flex gap-2 overflow-x-auto px-3 pb-2 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
+            <div
+              className={[
+                `inline-flex shrink-0 items-center justify-center border px-2.5 py-2 ${FILTER_PILL_RADIUS}`,
+                FILTER_PILL_SHADOW,
+                'border-[#DDDDDD] bg-white text-[#222222]',
+              ].join(' ')}
+              role="img"
+              aria-label="Sort"
+            >
+              <SrpSortPillIcon />
+            </div>
+
             <div
               key={FILTER_MAIN.id}
               className={[

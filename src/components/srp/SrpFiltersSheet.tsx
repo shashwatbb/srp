@@ -590,12 +590,12 @@ const SQFT_QUICK_CHIPS: readonly {
   min: number
   max: number
 }[] = [
-  { id: 'u500', label: 'Under 500', min: 0, max: 500 },
-  { id: '500-1k', label: '500 – 1,000', min: 500, max: 1000 },
-  { id: '1k-15', label: '1,000 – 1,500', min: 1000, max: 1500 },
-  { id: '15-2k', label: '1,500 – 2,000', min: 1500, max: 2000 },
-  { id: '2k-3k', label: '2,000 – 3,000', min: 2000, max: 3000 },
-  { id: '3kp', label: '3,000+', min: 3000, max: 12000 },
+  { id: 'u500', label: 'Under 500 sq.ft.', min: 0, max: 500 },
+  { id: '500-1k', label: '500 – 1,000 sq.ft.', min: 500, max: 1000 },
+  { id: '1k-15', label: '1,000 – 1,500 sq.ft.', min: 1000, max: 1500 },
+  { id: '15-2k', label: '1,500 – 2,000 sq.ft.', min: 1500, max: 2000 },
+  { id: '2k-3k', label: '2,000 – 3,000 sq.ft.', min: 2000, max: 3000 },
+  { id: '3kp', label: '3,000+ sq.ft.', min: 3000, max: 12000 },
 ]
 
 function formatSqftThumbLabel(sq: number): string {
