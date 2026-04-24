@@ -28,7 +28,7 @@ export const SRP_BUDGET_SNAP_STEPS_CR: readonly number[] = [
   0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
 ]
 
-/** Gallery / video / both — `both` is the default (no media restriction). */
+/** Photos vs video vs both — empty string means no filter. */
 export type SrpMediaPreference = '' | 'photos' | 'videos' | 'both'
 
 export type SrpAppliedFilters = {
@@ -72,7 +72,7 @@ export function createDefaultSrpAppliedFilters(): SrpAppliedFilters {
     developers: [],
     furnishing: [],
     facing: [],
-    mediaPreference: 'both',
+    mediaPreference: '',
     reraOnly: false,
   }
 }
@@ -205,7 +205,7 @@ export function countActiveSrpFilterDimensions(f: SrpAppliedFilters): number {
   if (f.amenities.length) n += 1
   /* Built-up, purchase type, age, furnishing, facing: exploration-only in this mock. */
   if (f.developers.length) n += 1
-  if (f.mediaPreference === 'photos' || f.mediaPreference === 'videos') n += 1
+  if (f.mediaPreference !== '') n += 1
   if (f.reraOnly) n += 1
   return n
 }
@@ -266,8 +266,9 @@ export function applySrpFilters(
       if (l.hasVideo) return false
     } else if (f.mediaPreference === 'videos') {
       if (!l.hasVideo) return false
+    } else if (f.mediaPreference === 'both') {
+      if (!l.hasVideo || l.imageCount < 20) return false
     }
-    /* `both` and `''`: no media restriction */
 
     if (f.developers.length > 0) {
       const name = l.projectName.toLowerCase()
@@ -640,13 +641,13 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
     })
   }
 
-  if (f.mediaPreference === 'photos' || f.mediaPreference === 'videos') {
+  if (f.mediaPreference !== '') {
     chips.push({
       id: 'photos',
       label: MEDIA_LABEL[f.mediaPreference] ?? 'Media',
       clear: (x) => {
         const n = cloneSrpAppliedFilters(x)
-        n.mediaPreference = 'both'
+        n.mediaPreference = ''
         return n
       },
     })

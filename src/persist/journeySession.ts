@@ -96,8 +96,7 @@ export function hydrateAppliedFiltersJson(json: string): SrpAppliedFilters | nul
       o.mediaPreference === 'both' ||
       o.mediaPreference === ''
     ) {
-      mediaPreference =
-        o.mediaPreference === '' ? 'both' : o.mediaPreference
+      mediaPreference = o.mediaPreference
     } else if (typeof oLegacy.minImageCount === 'number' && oLegacy.minImageCount > 0) {
       mediaPreference = 'photos'
     }
