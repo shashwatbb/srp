@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -354,7 +355,9 @@ export function SrpPage({
   /** After Apply: run light skeleton once the sheet has finished closing */
   const refreshListAfterFilterApplyRef = useRef(false)
   const appliedFiltersRef = useRef(appliedFilters)
-  appliedFiltersRef.current = appliedFilters
+  useLayoutEffect(() => {
+    appliedFiltersRef.current = appliedFilters
+  }, [appliedFilters])
 
   const [appliedChipOrder, setAppliedChipOrder] = useState<string[]>([])
 
@@ -407,6 +410,7 @@ export function SrpPage({
     appliedFilters.construction.includes('new_launch')
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination when filters or city change
     setVisibleLimit(INITIAL_VISIBLE)
   }, [appliedFilters, city])
 
@@ -417,6 +421,7 @@ export function SrpPage({
   /** Prune chip order when dimensions disappear (strip toggles, chip X, etc.). New chips still render via `orderedAppliedFilterChips` tail. */
   useEffect(() => {
     const ids = new Set(getAppliedFilterChips(appliedFilters).map((c) => c.id))
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- prune removed chip ids from order state
     setAppliedChipOrder((o) => {
       const pruned = o.filter((id) => ids.has(id))
       if (pruned.length === o.length && pruned.every((id, i) => id === o[i])) return o

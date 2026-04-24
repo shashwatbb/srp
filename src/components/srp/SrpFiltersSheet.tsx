@@ -314,12 +314,15 @@ function BudgetVerticalRange({
     [maxCr, minCr, onChange],
   )
 
-  const pointerUp = useCallback(() => {
-    dragRef.current = null
-    window.removeEventListener('pointermove', pointerMove)
-    window.removeEventListener('pointerup', pointerUp)
-    window.removeEventListener('pointercancel', pointerUp)
-  }, [pointerMove])
+  const pointerUp = useCallback(
+    function onBudgetPointerUp() {
+      dragRef.current = null
+      window.removeEventListener('pointermove', pointerMove)
+      window.removeEventListener('pointerup', onBudgetPointerUp)
+      window.removeEventListener('pointercancel', onBudgetPointerUp)
+    },
+    [pointerMove],
+  )
 
   const startDrag = (role: 'min' | 'max', e: React.PointerEvent) => {
     e.preventDefault()
@@ -514,6 +517,7 @@ function BudgetFilterPanel({
 
   /** Slider edits that no longer match the highlighted chip — clear chip highlight */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep chip highlight in sync when slider values change externally
     setSelectedChipId((prev) => {
       if (prev === null) return prev
       const r = budgetRangeFromChipId(prev)
@@ -697,12 +701,15 @@ function AreaVerticalRange({
     [maxSq, minSq, onChange],
   )
 
-  const pointerUp = useCallback(() => {
-    dragRef.current = null
-    window.removeEventListener('pointermove', pointerMove)
-    window.removeEventListener('pointerup', pointerUp)
-    window.removeEventListener('pointercancel', pointerUp)
-  }, [pointerMove])
+  const pointerUp = useCallback(
+    function onAreaPointerUp() {
+      dragRef.current = null
+      window.removeEventListener('pointermove', pointerMove)
+      window.removeEventListener('pointerup', onAreaPointerUp)
+      window.removeEventListener('pointercancel', onAreaPointerUp)
+    },
+    [pointerMove],
+  )
 
   const startDrag = (role: 'min' | 'max', e: React.PointerEvent) => {
     e.preventDefault()
@@ -892,6 +899,7 @@ function AreaFilterPanel({
   const [selectedChipId, setSelectedChipId] = useState<string | null>(null)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keep chip highlight in sync when slider values change externally
     setSelectedChipId((prev) => {
       if (prev === null) return prev
       const r = areaRangeFromChipId(prev)
@@ -1602,6 +1610,7 @@ export function SrpFiltersSheet({
   }, [onClose, onCloseMotionStart])
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- present/enter/motion flags mirror `open` for sheet animation lifecycle */
     if (open) {
       if (closeTimerRef.current) {
         clearTimeout(closeTimerRef.current)
@@ -1640,12 +1649,15 @@ export function SrpFiltersSheet({
     setEntered(false)
     setMotionReady(false)
     setPresent(false)
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open])
 
   useEffect(() => {
     if (open) {
+      /* eslint-disable react-hooks/set-state-in-effect -- draft mirrors `applied` each time sheet opens */
       setDraft(cloneSrpAppliedFilters(applied))
       setActive('budget')
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [open, applied])
 

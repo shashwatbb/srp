@@ -51,8 +51,3 @@ export function MobileOnlyMessage() {
     </div>
   )
 }
-
-/** @deprecated Use `MobileOnlyMessage` at the app root when viewport is not mobile. */
-export function DesktopBlockedScreen() {
-  return null
-}

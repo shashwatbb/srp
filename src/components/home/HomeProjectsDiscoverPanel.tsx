@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { developerAvatarUrl, PROJECTS_SEARCH_TOP_DEVELOPERS } from '../../data/topDevelopersMock'
 import { getSrpListingsForCity } from '../../data/srpMock'
 import { getTrendingProjectsForCity } from '../../data/trendingProjectsMock'
-import {
-  HOTSPOT_LOCALITY_STRIP,
-  HotspotLocalityCard,
-} from '../projects/HotspotLocalityShared'
+import { HOTSPOT_LOCALITY_STRIP } from '../../data/hotspotLocalityStrip'
+import { HotspotLocalityCard } from '../projects/HotspotLocalityShared'
 
 type HomeProjectsDiscoverPanelProps = {
   city: string

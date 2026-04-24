@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { HotspotAreaOption } from '../../data/srpAreasMock'
 
@@ -21,7 +21,9 @@ export function SrpAreaPickerSheet({
 }: SrpAreaPickerSheetProps) {
   const [draftIds, setDraftIds] = useState<Set<string>>(() => new Set(committedIds))
   const committedRef = useRef(committedIds)
-  committedRef.current = committedIds
+  useLayoutEffect(() => {
+    committedRef.current = committedIds
+  }, [committedIds])
 
   useEffect(() => {
     if (open) {

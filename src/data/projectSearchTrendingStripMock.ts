@@ -32,6 +32,7 @@ const STRIP: TrendingStripProject[] = [
   },
 ]
 
-export function getTrendingStripForCity(_city: string): TrendingStripProject[] {
+export function getTrendingStripForCity(city: string): TrendingStripProject[] {
+  void city
   return STRIP
 }

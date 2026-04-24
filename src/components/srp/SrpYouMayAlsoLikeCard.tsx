@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { HOTSPOT_LOCALITY_STRIP } from '../../data/hotspotLocalityStrip'
 import {
-  HOTSPOT_LOCALITY_STRIP,
   HotspotLocalityCard,
   HotspotLocalityCardSkeleton,
 } from '../projects/HotspotLocalityShared'
