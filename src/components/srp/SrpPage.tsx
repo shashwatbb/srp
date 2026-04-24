@@ -15,10 +15,7 @@ import {
 } from '../../data/srpAreasMock'
 import { getSrpListingsForCity, type SrpListing } from '../../data/srpMock'
 import { SrpAreaPickerSheet } from './SrpAreaPickerSheet'
-import {
-  SRP_FILTER_SHEET_TRANSITION_MS,
-  SrpFiltersSheet,
-} from './SrpFiltersSheet'
+import { SrpFiltersSheet } from './SrpFiltersSheet'
 import { HotspotSparkIcon, NewProjectsCuteIcon } from './SrpFilterCuteIcons'
 import { SrpNewProjectsInfoBlock } from './SrpNewProjectsInfoBlock'
 import { SrpListingCard } from './SrpListingCard'
@@ -42,10 +39,6 @@ import {
   type SrpAppliedFilters,
 } from './srpFilterModel'
 import { gentleHaptic } from '../../lib/gentleHaptic'
-
-/** Must match `SRP_FILTER_SHEET_TRANSITION_MS` so un-zoom and sheet unmount stay in phase. */
-const SRP_CHROME_ZOOM_MS = SRP_FILTER_SHEET_TRANSITION_MS
-const SRP_CHROME_SCALE = 0.91
 
 type SrpPageProps = {
   city: string
@@ -353,38 +346,6 @@ export function SrpPage({
     gentleHaptic()
     setFiltersSheetOpen(true)
   }, [])
-  /** Background zoom / radius — delayed to match sheet arm frame; off when sheet closes */
-  const [filterChromeActive, setFilterChromeActive] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(false)
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const sync = () => setReducedMotion(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
-
-  useEffect(() => {
-    if (!filtersSheetOpen) {
-      setFilterChromeActive(false)
-      return
-    }
-    if (reducedMotion) {
-      setFilterChromeActive(true)
-      return
-    }
-    let id1 = 0
-    let id2 = 0
-    /** Two frames: commit `scale(1)` + transition, then animate toward zoomed scale */
-    id1 = requestAnimationFrame(() => {
-      id2 = requestAnimationFrame(() => setFilterChromeActive(true))
-    })
-    return () => {
-      cancelAnimationFrame(id1)
-      cancelAnimationFrame(id2)
-    }
-  }, [filtersSheetOpen, reducedMotion])
   const [areaSheetOpen, setAreaSheetOpen] = useState(false)
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE)
   const [listLoading, setListLoading] = useState(false)
@@ -658,40 +619,7 @@ export function SrpPage({
 
   return (
     <div className="relative min-h-dvh w-full">
-      {filtersSheetOpen ? (
-        <div
-          className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#FFFFFF_0%,#FFFFFF_min(260px,32dvh),#F6F8FB_min(260px,32dvh),#F6F8FB_100%)]"
-          aria-hidden
-        />
-      ) : null}
-      <div
-        className={[
-          'projects-shell relative z-[1] flex min-h-dvh flex-col',
-          filtersSheetOpen ? 'bg-transparent' : 'bg-[#F6F8FB]',
-          'origin-top',
-          filtersSheetOpen ? 'overflow-hidden rounded-2xl will-change-transform' : null,
-          'motion-reduce:transition-none',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        style={
-          filtersSheetOpen
-            ? {
-                transform: filterChromeActive
-                  ? `translate3d(0,0,0) scale(${SRP_CHROME_SCALE})`
-                  : 'translate3d(0,0,0) scale(1)',
-                ...(reducedMotion
-                  ? {}
-                  : {
-                      transitionProperty: 'transform',
-                    transitionDuration: `${SRP_CHROME_ZOOM_MS}ms`,
-                    transitionTimingFunction:
-                      'cubic-bezier(0.25, 0.1, 0.25, 1)',
-                    }),
-              }
-            : undefined
-        }
-      >
+      <div className="projects-shell relative z-[1] flex min-h-dvh flex-col bg-[#F6F8FB]">
       <div className="shrink-0 bg-white">
         <header
           className="relative z-20 bg-white"
@@ -1022,7 +950,6 @@ export function SrpPage({
       <SrpFiltersSheet
         open={filtersSheetOpen}
         onClose={handleFiltersSheetClose}
-        onCloseMotionStart={() => setFilterChromeActive(false)}
         applied={appliedFilters}
         onApply={handleFilterSheetApply}
       />
