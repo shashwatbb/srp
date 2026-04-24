@@ -183,9 +183,9 @@ export const FILTER_FACING_OPTIONS = [
 ]
 
 export const FILTER_PHOTOS_OPTIONS = [
-  { id: 'photos' as const, label: 'Photos' },
-  { id: 'videos' as const, label: 'Videos' },
   { id: 'both' as const, label: 'Both' },
+  { id: 'photos' as const, label: 'Gallery' },
+  { id: 'videos' as const, label: 'Videos' },
 ] as const
 
 export const FILTER_CATEGORY_IDS = [

@@ -1186,27 +1186,111 @@ function CategoryNav({
 }) {
   const navRef = useRef<HTMLElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const [bar, setBar] = useState({ top: 0, height: 0 })
+  const indicatorRef = useRef<HTMLDivElement>(null)
+  const lastGeomRef = useRef<{ top: number; height: number }>({
+    top: 0,
+    height: 0,
+  })
+  const runningAnimRef = useRef<Animation | null>(null)
 
-  const syncBar = useCallback(() => {
+  const applyIndicatorGeom = useCallback((g: { top: number; height: number }) => {
+    const el = indicatorRef.current
+    if (!el) return
+    el.style.transform = `translateY(${g.top}px)`
+    el.style.height = g.height > 0 ? `${g.height}px` : '0px'
+    el.style.opacity = g.height > 0 ? '1' : '0'
+    lastGeomRef.current = g
+  }, [])
+
+  const runElastic = useCallback(
+    (from: { top: number; height: number }, to: { top: number; height: number }) => {
+      const el = indicatorRef.current
+      if (!el) {
+        applyIndicatorGeom(to)
+        return
+      }
+      runningAnimRef.current?.cancel()
+      const stretchTop = Math.min(from.top, to.top)
+      const stretchH = Math.max(from.top + from.height, to.top + to.height) - stretchTop
+
+      if (typeof el.animate !== 'function') {
+        applyIndicatorGeom(to)
+        return
+      }
+
+      applyIndicatorGeom(from)
+      const anim = el.animate(
+        [
+          { transform: `translateY(${from.top}px)`, height: `${from.height}px` },
+          { transform: `translateY(${stretchTop}px)`, height: `${stretchH}px` },
+          { transform: `translateY(${to.top}px)`, height: `${to.height}px` },
+        ],
+        { duration: 420, easing: 'cubic-bezier(0.25, 0.88, 0.35, 1.08)' },
+      )
+      runningAnimRef.current = anim
+      anim.onfinish = () => {
+        runningAnimRef.current = null
+        applyIndicatorGeom(to)
+        try {
+          anim.cancel()
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [applyIndicatorGeom],
+  )
+
+  useLayoutEffect(() => {
+    runningAnimRef.current?.cancel()
+    const committed = lastGeomRef.current
+    if (committed.height > 0) {
+      applyIndicatorGeom(committed)
+    }
     const nav = navRef.current
     const idx = FILTER_CATEGORY_IDS.indexOf(active)
     const btn = itemRefs.current[idx]
     if (!nav || !btn) return
-    setBar({ top: btn.offsetTop, height: btn.offsetHeight })
-  }, [active])
+    const next = { top: btn.offsetTop, height: btn.offsetHeight }
+    const from = lastGeomRef.current
 
-  useLayoutEffect(() => {
-    syncBar()
-  }, [syncBar])
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+
+    if (next.height === 0) {
+      applyIndicatorGeom(next)
+      return
+    }
+    if (from.height === 0 || reduced) {
+      applyIndicatorGeom(next)
+      return
+    }
+    if (from.top === next.top && from.height === next.height) return
+
+    runElastic(from, next)
+  }, [active, applyIndicatorGeom, runElastic])
 
   useEffect(() => {
     const nav = navRef.current
     if (!nav || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => syncBar())
+    const sync = () => {
+      runningAnimRef.current?.cancel()
+      const idx = FILTER_CATEGORY_IDS.indexOf(active)
+      const btn = itemRefs.current[idx]
+      if (!btn) return
+      applyIndicatorGeom({ top: btn.offsetTop, height: btn.offsetHeight })
+    }
+    const ro = new ResizeObserver(sync)
     ro.observe(nav)
     return () => ro.disconnect()
-  }, [syncBar])
+  }, [active, applyIndicatorGeom])
+
+  useEffect(() => {
+    return () => {
+      runningAnimRef.current?.cancel()
+    }
+  }, [])
 
   return (
     <nav
@@ -1216,16 +1300,9 @@ function CategoryNav({
       aria-label="Filter categories"
     >
       <div
+        ref={indicatorRef}
         aria-hidden
-        className={[
-          'pointer-events-none absolute left-0 top-0 z-[1] w-[5px] rounded-r-[10px] bg-[#5B22DE]',
-          'motion-safe:transition-[transform,height,opacity] motion-safe:duration-[240ms] motion-safe:ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
-        ].join(' ')}
-        style={{
-          transform: `translateY(${bar.top}px)`,
-          height: bar.height > 0 ? bar.height : 0,
-          opacity: bar.height > 0 ? 1 : 0,
-        }}
+        className="pointer-events-none absolute left-0 top-0 z-[1] w-[5px] rounded-r-[10px] bg-[#5B22DE]"
       />
       {FILTER_CATEGORY_IDS.map((id, index) => {
         const isActive = id === active
