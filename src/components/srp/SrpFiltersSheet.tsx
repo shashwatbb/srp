@@ -21,7 +21,6 @@ import {
   FILTER_FURNISHING_OPTIONS,
   FILTER_LAUNCHER_OPTIONS,
   FILTER_LISTED_BY_OPTIONS,
-  FILTER_PHOTOS_OPTIONS,
   FILTER_PROPERTY_AGE_OPTIONS,
   FILTER_PROPERTY_TYPE_OPTIONS,
   FILTER_PURCHASE_TYPE_OPTIONS,
@@ -1199,6 +1198,14 @@ const VERIFIED_CHECKBOX_ITEMS: CheckboxFilterItem[] = [
 const SITE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_SITE_FEATURE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
 
+/** Single checkbox — toggles `mediaPreference` '' ↔ 'photos'. */
+const PHOTOS_MEDIA_CHECKBOX_ITEMS: CheckboxFilterItem[] = [
+  {
+    id: 'photos',
+    label: 'Show properties with images',
+  },
+]
+
 /** BHK / Type: checkbox column, dividers, optional hint line, tap pulse on title */
 function CheckboxFilterColumn({
   items,
@@ -1692,19 +1699,20 @@ function RightPanel({
       <div className="px-4 pb-24 pt-5">
         <PanelSectionLabel categoryId="photos" />
         <div className={listWrap}>
-          {FILTER_PHOTOS_OPTIONS.map((opt) => (
-            <FilterOptionRow
-              key={opt.id}
-              label={opt.label}
-              selected={draft.mediaPreference === opt.id}
-              onClick={() =>
-                setDraft((d) => ({
-                  ...d,
-                  mediaPreference: opt.id,
-                }))
-              }
-            />
-          ))}
+          <CheckboxFilterColumn
+            items={PHOTOS_MEDIA_CHECKBOX_ITEMS}
+            selectedIds={
+              draft.mediaPreference === 'photos' ? ['photos'] : []
+            }
+            onToggle={(id) => {
+              if (id !== 'photos') return
+              setDraft((d) => ({
+                ...d,
+                mediaPreference:
+                  d.mediaPreference === 'photos' ? '' : 'photos',
+              }))
+            }}
+          />
         </div>
       </div>
     )

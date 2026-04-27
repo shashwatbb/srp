@@ -182,12 +182,6 @@ export const FILTER_FACING_OPTIONS = [
   { id: 'sw', label: 'South-West' },
 ]
 
-export const FILTER_PHOTOS_OPTIONS = [
-  { id: 'photos' as const, label: 'Photos' },
-  { id: 'videos' as const, label: 'Videos' },
-  { id: 'both' as const, label: 'Both' },
-] as const
-
 export const FILTER_LAUNCHER_OPTIONS = [
   { id: 'within_1y' as const, label: 'Within 1 year' },
   { id: 'within_3y' as const, label: 'Within 3 years' },
@@ -253,7 +247,7 @@ export const FILTER_CATEGORY_LABELS: Record<FilterCategoryId, string> = {
   developer: 'Developer',
   furnishing: 'Furnishing',
   facing: 'Facing',
-  photos: 'Photos & video',
+  photos: 'Photos',
   rera: 'RERA',
   launched: 'Launched',
   verified: 'Verified',

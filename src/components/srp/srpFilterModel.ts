@@ -12,7 +12,6 @@ import {
   FILTER_ADDED_ON_OPTIONS,
   FILTER_LAUNCHER_OPTIONS,
   FILTER_SITE_FEATURE_OPTIONS,
-  FILTER_PHOTOS_OPTIONS,
   FILTER_PROPERTY_AGE_OPTIONS,
   FILTER_PROPERTY_TYPE_OPTIONS,
   FILTER_PURCHASE_TYPE_OPTIONS,
@@ -404,7 +403,7 @@ export function applySrpFilters(
     }
 
     if (f.mediaPreference === 'photos') {
-      if (l.hasVideo) return false
+      if (l.imageCount < 1) return false
     } else if (f.mediaPreference === 'videos') {
       if (!l.hasVideo) return false
     } else if (f.mediaPreference === 'both') {
@@ -547,9 +546,11 @@ const FURNISH_LABEL = Object.fromEntries(
 const FACING_LABEL = Object.fromEntries(
   FILTER_FACING_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
-const MEDIA_LABEL = Object.fromEntries(
-  FILTER_PHOTOS_OPTIONS.map((o) => [o.id, o.label]),
-) as Record<string, string>
+const MEDIA_LABEL = {
+  photos: 'Show properties with images',
+  videos: 'Videos',
+  both: 'Both',
+} as Record<string, string>
 
 const LAUNCHER_LABEL = Object.fromEntries(
   FILTER_LAUNCHER_OPTIONS.map((o) => [o.id, o.label]),
