@@ -115,6 +115,10 @@ const LIST_REFRESH_MS_JITTER = 180
 const LIST_REFRESH_POST_SHEET_MS_MIN = 400
 const LIST_REFRESH_POST_SHEET_JITTER = 100
 
+/**
+ * Keep removable chips visually right after Sort + Filters: newest apply / touch first
+ * (leftmost), then older chips; Budget/BHK/Area/Status shortcuts render after the chip group.
+ */
 function mergeAppliedChipOrder(
   prevFilters: SrpAppliedFilters,
   nextFilters: SrpAppliedFilters,
@@ -122,18 +126,36 @@ function mergeAppliedChipOrder(
 ): string[] {
   const prevChips = getAppliedFilterChips(prevFilters)
   const nextChips = getAppliedFilterChips(nextFilters)
-  const prevLabel = new Map(prevChips.map((c) => [c.id, c.label]))
-  const changed = nextChips.filter((c) => prevLabel.get(c.id) !== c.label)
-  const changedFront = [...changed].reverse().map((c) => c.id)
+  const prevById = new Map(prevChips.map((c) => [c.id, c]))
   const nextIdSet = new Set(nextChips.map((c) => c.id))
 
-  const rest = order.filter(
-    (id) => nextIdSet.has(id) && !changedFront.includes(id),
-  )
-  let out = [...changedFront, ...rest]
-  /** Brand-new chip ids (first apply) stay next to the shortcut pills, not at the strip tail. */
-  const missing = nextChips.map((c) => c.id).filter((id) => !out.includes(id))
-  out = [...missing, ...out]
+  /** First time this chip appears after Apply (e.g. first amenities selection). */
+  const newlyAddedIds = nextChips
+    .filter((c) => !prevById.has(c.id))
+    .map((c) => c.id)
+
+  /** Same dimension but label changed (e.g. more amenities) — bump toward Filters for visibility. */
+  const labelTouchedIds = nextChips
+    .filter((c) => {
+      const p = prevById.get(c.id)
+      return p != null && p.label !== c.label
+    })
+    .map((c) => c.id)
+
+  /**
+   * Reverse so dimensions that appear later in `getAppliedFilterChips` order (e.g. amenities
+   * after listedBy) land leftmost when multiple are new in one apply — closer to “latest” in the sheet.
+   */
+  const frontIds = [
+    ...new Set([...[...newlyAddedIds].reverse(), ...[...labelTouchedIds].reverse()]),
+  ]
+
+  const tail = order.filter((id) => nextIdSet.has(id) && !frontIds.includes(id))
+
+  const out = [...frontIds, ...tail]
+  for (const c of nextChips) {
+    if (!out.includes(c.id)) out.push(c.id)
+  }
   return out
 }
 
@@ -802,33 +824,6 @@ export function SrpPage({
               ) : null}
             </div>
 
-            {FILTER_SHEET_SHORTCUTS.map((f) => {
-              const shortcutOn = sheetShortcutActive(f.sheetTab, appliedFilters)
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => openFiltersSheetTo(f.sheetTab)}
-                  className={[
-                    `inline-flex min-w-0 max-w-[200px] shrink-0 items-center gap-1 border px-3 py-2 text-xs font-medium leading-4 ${FILTER_PILL_RADIUS}`,
-                    FILTER_PILL_SHADOW,
-                    shortcutOn
-                      ? FILTER_PILL_ACTIVE_PURPLE
-                      : 'border-[#DDDDDD] bg-white text-[#222222]',
-                  ].join(' ')}
-                >
-                  <span className="min-w-0 truncate">
-                    {sheetShortcutCaption(f.sheetTab, appliedFilters)}
-                  </span>
-                  <ChevronDown
-                    className={
-                      shortcutOn ? 'shrink-0 text-[#5B22DE]/70' : 'shrink-0 text-[#6A6A6A]'
-                    }
-                  />
-                </button>
-              )
-            })}
-
             {orderedAppliedFilterChips.map((chip) => (
               <div
                 key={chip.id}
@@ -855,6 +850,33 @@ export function SrpPage({
                 </button>
               </div>
             ))}
+
+            {FILTER_SHEET_SHORTCUTS.map((f) => {
+              const shortcutOn = sheetShortcutActive(f.sheetTab, appliedFilters)
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => openFiltersSheetTo(f.sheetTab)}
+                  className={[
+                    `inline-flex min-w-0 max-w-[200px] shrink-0 items-center gap-1 border px-3 py-2 text-xs font-medium leading-4 ${FILTER_PILL_RADIUS}`,
+                    FILTER_PILL_SHADOW,
+                    shortcutOn
+                      ? FILTER_PILL_ACTIVE_PURPLE
+                      : 'border-[#DDDDDD] bg-white text-[#222222]',
+                  ].join(' ')}
+                >
+                  <span className="min-w-0 truncate">
+                    {sheetShortcutCaption(f.sheetTab, appliedFilters)}
+                  </span>
+                  <ChevronDown
+                    className={
+                      shortcutOn ? 'shrink-0 text-[#5B22DE]/70' : 'shrink-0 text-[#6A6A6A]'
+                    }
+                  />
+                </button>
+              )
+            })}
           </div>
 
           <div
