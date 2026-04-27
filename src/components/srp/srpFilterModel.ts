@@ -9,10 +9,15 @@ import {
   FILTER_FACING_OPTIONS,
   FILTER_FURNISHING_OPTIONS,
   FILTER_LISTED_BY_OPTIONS,
+  FILTER_ADDED_ON_OPTIONS,
+  FILTER_LAUNCHER_OPTIONS,
+  FILTER_SITE_FEATURE_OPTIONS,
   FILTER_PHOTOS_OPTIONS,
   FILTER_PROPERTY_AGE_OPTIONS,
   FILTER_PROPERTY_TYPE_OPTIONS,
   FILTER_PURCHASE_TYPE_OPTIONS,
+  type SrpAddedOnWindowId,
+  type SrpLauncherWindowId,
 } from '../../data/srpFiltersMock'
 import type { SrpListing } from '../../data/srpMock'
 
@@ -30,6 +35,12 @@ export const SRP_BUDGET_SNAP_STEPS_CR: readonly number[] = [
 
 /** Photos vs video vs both — empty string means no filter. */
 export type SrpMediaPreference = '' | 'photos' | 'videos' | 'both'
+
+/** Possession within N years — empty means no Launched filter. */
+export type SrpLauncherWindow = '' | SrpLauncherWindowId
+
+/** How recently the listing was added — empty means no Added on filter. */
+export type SrpAddedOn = '' | SrpAddedOnWindowId
 
 export type SrpAppliedFilters = {
   useHotspot: boolean
@@ -51,6 +62,13 @@ export type SrpAppliedFilters = {
   facing: string[]
   mediaPreference: SrpMediaPreference
   reraOnly: boolean
+  launcherWindow: SrpLauncherWindow
+  verifiedOnly: boolean
+  /** Corner lot / corner unit (amenity `corner_property`). */
+  siteCorner: boolean
+  /** Enclosed plot with boundary wall (amenity `boundary_wall`). */
+  siteBoundaryWall: boolean
+  addedOn: SrpAddedOn
 }
 
 export function createDefaultSrpAppliedFilters(): SrpAppliedFilters {
@@ -74,6 +92,11 @@ export function createDefaultSrpAppliedFilters(): SrpAppliedFilters {
     facing: [],
     mediaPreference: '',
     reraOnly: false,
+    launcherWindow: '',
+    verifiedOnly: false,
+    siteCorner: false,
+    siteBoundaryWall: false,
+    addedOn: '',
   }
 }
 
@@ -136,7 +159,12 @@ export function areSrpAppliedFiltersEqual(
     sameSortedStrings(a.furnishing, b.furnishing) &&
     sameSortedStrings(a.facing, b.facing) &&
     a.mediaPreference === b.mediaPreference &&
-    a.reraOnly === b.reraOnly
+    a.reraOnly === b.reraOnly &&
+    a.launcherWindow === b.launcherWindow &&
+    a.verifiedOnly === b.verifiedOnly &&
+    a.siteCorner === b.siteCorner &&
+    a.siteBoundaryWall === b.siteBoundaryWall &&
+    a.addedOn === b.addedOn
   )
 }
 
@@ -207,7 +235,43 @@ export function countActiveSrpFilterDimensions(f: SrpAppliedFilters): number {
   if (f.developers.length) n += 1
   if (f.mediaPreference !== '') n += 1
   if (f.reraOnly) n += 1
+  if (f.launcherWindow !== '') n += 1
+  if (f.verifiedOnly) n += 1
+  if (f.siteCorner) n += 1
+  if (f.siteBoundaryWall) n += 1
+  if (f.addedOn !== '') n += 1
   return n
+}
+
+function startOfLocalDayMs(nowMs: number): number {
+  const d = new Date(nowMs)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+/** `listedAtMs` vs filter window (`FILTER_ADDED_ON_OPTIONS` ids). */
+export function listingMatchesAddedOnFilter(
+  listedAtMs: number,
+  window: SrpAddedOnWindowId,
+): boolean {
+  const now = Date.now()
+  if (listedAtMs > now) return false
+
+  switch (window) {
+    case 'yesterday': {
+      const startToday = startOfLocalDayMs(now)
+      const startYesterday = startToday - 86400000
+      return listedAtMs >= startYesterday && listedAtMs < startToday
+    }
+    case 'last_3_days':
+      return now - listedAtMs <= 3 * 86400000
+    case 'last_week':
+      return now - listedAtMs <= 7 * 86400000
+    case 'last_month':
+      return now - listedAtMs <= 30 * 86400000
+    default:
+      return true
+  }
 }
 
 export function applySrpFilters(
@@ -260,7 +324,25 @@ export function applySrpFilters(
       }
     }
 
+    if (f.siteCorner || f.siteBoundaryWall) {
+      const am = new Set(l.amenityIds)
+      if (f.siteCorner && !am.has('corner_property')) return false
+      if (f.siteBoundaryWall && !am.has('boundary_wall')) return false
+    }
+
     if (f.reraOnly && !l.rera) return false
+
+    if (f.verifiedOnly && !l.verified) return false
+
+    if (f.launcherWindow !== '') {
+      const maxYears =
+        f.launcherWindow === 'within_1y'
+          ? 1
+          : f.launcherWindow === 'within_3y'
+            ? 3
+            : 10
+      if (l.yearsToPossession > maxYears + 1e-9) return false
+    }
 
     if (f.mediaPreference === 'photos') {
       if (l.hasVideo) return false
@@ -274,6 +356,10 @@ export function applySrpFilters(
       const name = l.projectName.toLowerCase()
       const hit = f.developers.some((d) => name.includes(d.toLowerCase()))
       if (!hit) return false
+    }
+
+    if (f.addedOn !== '') {
+      if (!listingMatchesAddedOnFilter(l.listedAtMs, f.addedOn)) return false
     }
 
     return true
@@ -404,6 +490,18 @@ const FACING_LABEL = Object.fromEntries(
 ) as Record<string, string>
 const MEDIA_LABEL = Object.fromEntries(
   FILTER_PHOTOS_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+
+const LAUNCHER_LABEL = Object.fromEntries(
+  FILTER_LAUNCHER_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+
+const SITE_FEATURE_LABEL = Object.fromEntries(
+  FILTER_SITE_FEATURE_OPTIONS.map((o) => [o.id, o.label]),
+) as Record<string, string>
+
+const ADDED_ON_LABEL = Object.fromEntries(
+  FILTER_ADDED_ON_OPTIONS.map((o) => [o.id, o.label]),
 ) as Record<string, string>
 
 function fmtCr(n: number): string {
@@ -597,6 +695,66 @@ export function getAppliedFilterChips(f: SrpAppliedFilters): AppliedFilterChip[]
       clear: (x) => {
         const n = cloneSrpAppliedFilters(x)
         n.reraOnly = false
+        return n
+      },
+    })
+  }
+
+  if (f.launcherWindow !== '') {
+    chips.push({
+      id: 'launcherWindow',
+      label: LAUNCHER_LABEL[f.launcherWindow] ?? 'Launched',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.launcherWindow = ''
+        return n
+      },
+    })
+  }
+
+  if (f.verifiedOnly) {
+    chips.push({
+      id: 'verifiedOnly',
+      label: 'Verified properties only',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.verifiedOnly = false
+        return n
+      },
+    })
+  }
+
+  if (f.siteCorner) {
+    chips.push({
+      id: 'siteCorner',
+      label: SITE_FEATURE_LABEL.corner_property ?? 'Corner property',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.siteCorner = false
+        return n
+      },
+    })
+  }
+
+  if (f.siteBoundaryWall) {
+    chips.push({
+      id: 'siteBoundaryWall',
+      label: SITE_FEATURE_LABEL.boundary_wall ?? 'Boundary wall',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.siteBoundaryWall = false
+        return n
+      },
+    })
+  }
+
+  if (f.addedOn !== '') {
+    chips.push({
+      id: 'addedOn',
+      label: ADDED_ON_LABEL[f.addedOn] ?? 'Added on',
+      clear: (x) => {
+        const n = cloneSrpAppliedFilters(x)
+        n.addedOn = ''
         return n
       },
     })

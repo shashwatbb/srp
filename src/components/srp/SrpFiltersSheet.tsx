@@ -19,11 +19,14 @@ import {
   FILTER_DEVELOPER_OPTIONS,
   FILTER_FACING_OPTIONS,
   FILTER_FURNISHING_OPTIONS,
+  FILTER_LAUNCHER_OPTIONS,
   FILTER_LISTED_BY_OPTIONS,
   FILTER_PHOTOS_OPTIONS,
   FILTER_PROPERTY_AGE_OPTIONS,
   FILTER_PROPERTY_TYPE_OPTIONS,
   FILTER_PURCHASE_TYPE_OPTIONS,
+  FILTER_ADDED_ON_OPTIONS,
+  FILTER_SITE_FEATURE_OPTIONS,
   type FilterCategoryId,
 } from '../../data/srpFiltersMock'
 import { filterCategoryRailHaptic } from '../../lib/gentleHaptic'
@@ -1018,6 +1021,16 @@ const FURNISHING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
 const FACING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_FACING_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
 
+const VERIFIED_CHECKBOX_ITEMS: CheckboxFilterItem[] = [
+  {
+    id: 'verified_only',
+    label: 'View verified properties only',
+  },
+]
+
+const SITE_CHECKBOX_ITEMS: CheckboxFilterItem[] =
+  FILTER_SITE_FEATURE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
+
 /** BHK / Type: checkbox column, dividers, optional hint line, tap pulse on title */
 function CheckboxFilterColumn({
   items,
@@ -1563,6 +1576,100 @@ function RightPanel({
               setDraft((d) => ({ ...d, reraOnly: !d.reraOnly }))
             }
           />
+        </div>
+      </div>
+    )
+  }
+
+  if (active === 'launched') {
+    return (
+      <div className="px-4 pb-24 pt-5">
+        <PanelSectionLabel categoryId="launched" />
+        <div className={listWrap}>
+          {FILTER_LAUNCHER_OPTIONS.map((opt) => (
+            <FilterOptionRow
+              key={opt.id}
+              label={opt.label}
+              selected={draft.launcherWindow === opt.id}
+              onClick={() =>
+                setDraft((d) => ({
+                  ...d,
+                  launcherWindow:
+                    d.launcherWindow === opt.id ? '' : opt.id,
+                }))
+              }
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (active === 'verified') {
+    return (
+      <div className="px-4 pb-24 pt-5">
+        <PanelSectionLabel categoryId="verified" />
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={VERIFIED_CHECKBOX_ITEMS}
+            selectedIds={
+              draft.verifiedOnly ? ['verified_only'] : []
+            }
+            onToggle={() =>
+              setDraft((d) => ({ ...d, verifiedOnly: !d.verifiedOnly }))
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (active === 'site') {
+    return (
+      <div className="px-4 pb-24 pt-5">
+        <PanelSectionLabel categoryId="site" />
+        <div className="mt-2">
+          <CheckboxFilterColumn
+            items={SITE_CHECKBOX_ITEMS}
+            selectedIds={[
+              ...(draft.siteCorner ? ['corner_property'] : []),
+              ...(draft.siteBoundaryWall ? ['boundary_wall'] : []),
+            ]}
+            onToggle={(id) =>
+              setDraft((d) => {
+                if (id === 'corner_property') {
+                  return { ...d, siteCorner: !d.siteCorner }
+                }
+                if (id === 'boundary_wall') {
+                  return { ...d, siteBoundaryWall: !d.siteBoundaryWall }
+                }
+                return d
+              })
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (active === 'addedOn') {
+    return (
+      <div className="px-4 pb-24 pt-5">
+        <PanelSectionLabel categoryId="addedOn" />
+        <div className={listWrap}>
+          {FILTER_ADDED_ON_OPTIONS.map((opt) => (
+            <FilterOptionRow
+              key={opt.id}
+              label={opt.label}
+              selected={draft.addedOn === opt.id}
+              onClick={() =>
+                setDraft((d) => ({
+                  ...d,
+                  addedOn: d.addedOn === opt.id ? '' : opt.id,
+                }))
+              }
+            />
+          ))}
         </div>
       </div>
     )

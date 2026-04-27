@@ -175,6 +175,31 @@ export function hydrateAppliedFiltersJson(json: string): SrpAppliedFilters | nul
       useHotspot: typeof o.useHotspot === 'boolean' ? o.useHotspot : d.useHotspot,
       upcomingOnly: typeof o.upcomingOnly === 'boolean' ? o.upcomingOnly : d.upcomingOnly,
       reraOnly: typeof o.reraOnly === 'boolean' ? o.reraOnly : d.reraOnly,
+      verifiedOnly:
+        typeof o.verifiedOnly === 'boolean' ? o.verifiedOnly : d.verifiedOnly,
+      siteCorner:
+        typeof o.siteCorner === 'boolean' ? o.siteCorner : d.siteCorner,
+      siteBoundaryWall:
+        typeof o.siteBoundaryWall === 'boolean'
+          ? o.siteBoundaryWall
+          : d.siteBoundaryWall,
+      addedOn:
+        o.addedOn === 'yesterday' ||
+        o.addedOn === 'last_3_days' ||
+        o.addedOn === 'last_week' ||
+        o.addedOn === 'last_month'
+          ? o.addedOn
+          : o.addedOn === ''
+            ? ''
+            : d.addedOn,
+      launcherWindow:
+        o.launcherWindow === 'within_1y' ||
+        o.launcherWindow === 'within_3y' ||
+        o.launcherWindow === 'within_10y'
+          ? o.launcherWindow
+          : o.launcherWindow === ''
+            ? ''
+            : d.launcherWindow,
     }
     return cloneSrpAppliedFilters(merged)
   } catch {

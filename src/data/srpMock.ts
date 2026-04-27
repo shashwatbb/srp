@@ -22,6 +22,8 @@ export type SrpListing = {
   possessionStatus: 'new_launch' | 'under_construction' | 'ready'
   /** True when not ready — used for carousels and the “New projects” quick pill. */
   upcoming: boolean
+  /** Estimated years until possession from “today” (0 = ready). Drives Launched filter. */
+  yearsToPossession: number
   /** For “newest” sort */
   listedAtMs: number
   /** Hotspot locality bucket (for area filter when City hotspots on) */
@@ -124,6 +126,10 @@ function buildListing(
   const possessionStatus =
     i % 3 === 0 ? 'new_launch' : i % 3 === 1 ? 'under_construction' : 'ready'
   const upcoming = possessionStatus !== 'ready'
+  const yearsToPossession =
+    possessionStatus === 'ready'
+      ? 0
+      : [0.6, 1.1, 2.4, 3.8, 5.2, 7.5, 9.5, 11][i % 8]!
   const [oName, oRole] = OWNERS[i % OWNERS.length]!
   const sector = `Sector ${50 + (i % 40)}`
   const areaId = ALL_HOTSPOT_AREA_IDS[i % ALL_HOTSPOT_AREA_IDS.length]!
@@ -169,6 +175,7 @@ function buildListing(
     hotspot,
     possessionStatus,
     upcoming,
+    yearsToPossession,
     listedAtMs: Date.now() - i * 86400000 * (1 + (i % 3)),
     areaId,
     amenityIds,

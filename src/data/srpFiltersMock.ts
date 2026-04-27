@@ -188,6 +188,35 @@ export const FILTER_PHOTOS_OPTIONS = [
   { id: 'both' as const, label: 'Both' },
 ] as const
 
+export const FILTER_LAUNCHER_OPTIONS = [
+  { id: 'within_1y' as const, label: 'Within 1 year' },
+  { id: 'within_3y' as const, label: 'Within 3 years' },
+  { id: 'within_10y' as const, label: 'Within 10 years' },
+] as const
+
+export type SrpLauncherWindowId =
+  (typeof FILTER_LAUNCHER_OPTIONS)[number]['id']
+
+/** Listing age on the portal — matches `SrpListing.listedAtMs`. */
+export const FILTER_ADDED_ON_OPTIONS = [
+  { id: 'yesterday' as const, label: 'Yesterday' },
+  { id: 'last_3_days' as const, label: 'Last 3 days' },
+  { id: 'last_week' as const, label: 'Last week' },
+  { id: 'last_month' as const, label: 'Last month' },
+] as const
+
+export type SrpAddedOnWindowId =
+  (typeof FILTER_ADDED_ON_OPTIONS)[number]['id']
+
+/** Corner / boundary — short “Site” filter; ids match `FILTER_AMENITIES_LONG`. */
+export const FILTER_SITE_FEATURE_OPTIONS = [
+  { id: 'corner_property' as const, label: 'Corner property' },
+  {
+    id: 'boundary_wall' as const,
+    label: 'Property with boundary walls',
+  },
+] as const
+
 export const FILTER_CATEGORY_IDS = [
   'budget',
   'bhk',
@@ -203,6 +232,10 @@ export const FILTER_CATEGORY_IDS = [
   'facing',
   'photos',
   'rera',
+  'launched',
+  'verified',
+  'site',
+  'addedOn',
 ] as const
 
 export type FilterCategoryId = (typeof FILTER_CATEGORY_IDS)[number]
@@ -222,4 +255,8 @@ export const FILTER_CATEGORY_LABELS: Record<FilterCategoryId, string> = {
   facing: 'Facing',
   photos: 'Photos & video',
   rera: 'RERA',
+  launched: 'Launched',
+  verified: 'Verified',
+  site: 'Site',
+  addedOn: 'Added on',
 }
