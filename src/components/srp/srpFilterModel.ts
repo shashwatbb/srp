@@ -16,6 +16,7 @@ import {
   FILTER_PROPERTY_AGE_OPTIONS,
   FILTER_PROPERTY_TYPE_OPTIONS,
   FILTER_PURCHASE_TYPE_OPTIONS,
+  type FilterCategoryId,
   type SrpAddedOnWindowId,
   type SrpLauncherWindowId,
 } from '../../data/srpFiltersMock'
@@ -241,6 +242,64 @@ export function countActiveSrpFilterDimensions(f: SrpAppliedFilters): number {
   if (f.siteBoundaryWall) n += 1
   if (f.addedOn !== '') n += 1
   return n
+}
+
+/**
+ * How many selections are active for a given full-screen filter category
+ * (for the left-rail label, e.g. "BHK (2)").
+ */
+export function getSrpCategorySelectionCount(
+  f: SrpAppliedFilters,
+  categoryId: FilterCategoryId,
+): number {
+  switch (categoryId) {
+    case 'budget': {
+      let n = 0
+      if (f.budgetMinCr > DEF.budgetMinCr + 0.01) n += 1
+      if (f.budgetMaxCr < DEF.budgetMaxCr - 0.01) n += 1
+      return n
+    }
+    case 'bhk':
+      return f.bhk.length
+    case 'propertyType':
+      return f.propertyTypes.length
+    case 'construction':
+      return f.upcomingOnly ? 0 : f.construction.length
+    case 'listedBy':
+      return f.listedBy.length
+    case 'amenities':
+      return f.amenities.length
+    case 'area': {
+      let n = 0
+      if (f.areaSqFtMin > DEF.areaSqFtMin) n += 1
+      if (f.areaSqFtMax < DEF.areaSqFtMax) n += 1
+      return n
+    }
+    case 'purchaseType':
+      return f.purchaseTypes.length
+    case 'propertyAge':
+      return f.propertyAges.length
+    case 'developer':
+      return f.developers.length
+    case 'furnishing':
+      return f.furnishing.length
+    case 'facing':
+      return f.facing.length
+    case 'photos':
+      return f.mediaPreference !== '' ? 1 : 0
+    case 'rera':
+      return f.reraOnly ? 1 : 0
+    case 'launched':
+      return f.launcherWindow !== '' ? 1 : 0
+    case 'verified':
+      return f.verifiedOnly ? 1 : 0
+    case 'site':
+      return (f.siteCorner ? 1 : 0) + (f.siteBoundaryWall ? 1 : 0)
+    case 'addedOn':
+      return f.addedOn !== '' ? 1 : 0
+    default:
+      return 0
+  }
 }
 
 function startOfLocalDayMs(nowMs: number): number {

@@ -35,6 +35,7 @@ import {
   cloneSrpAppliedFilters,
   countActiveSrpFilterDimensions,
   createDefaultSrpAppliedFilters,
+  getSrpCategorySelectionCount,
   SRP_BUDGET_MAX_CR,
   SRP_BUDGET_MIN_CR,
   SRP_BUDGET_SNAP_STEPS_CR,
@@ -1372,9 +1373,11 @@ function ExpandableCheckboxColumn({
 
 function CategoryNav({
   active,
+  draft,
   onSelect,
 }: {
   active: FilterCategoryId
+  draft: SrpAppliedFilters
   onSelect: (id: FilterCategoryId) => void
 }) {
   const navRef = useRef<HTMLElement>(null)
@@ -1422,6 +1425,10 @@ function CategoryNav({
       />
       {FILTER_CATEGORY_IDS.map((id, index) => {
         const isActive = id === active
+        const count = getSrpCategorySelectionCount(draft, id)
+        const baseLabel = FILTER_CATEGORY_LABELS[id]
+        const railLabel =
+          count > 0 ? `${baseLabel} (${count})` : baseLabel
         return (
           <button
             key={id}
@@ -1441,7 +1448,7 @@ function CategoryNav({
             ].join(' ')}
           >
             <span className="min-w-0 flex-1 py-3.5 pl-2 pr-2 text-left">
-              {FILTER_CATEGORY_LABELS[id]}
+              {railLabel}
             </span>
           </button>
         )
@@ -2117,7 +2124,7 @@ export function SrpFiltersSheet({
             </header>
 
             <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
-              <CategoryNav active={active} onSelect={setActive} />
+              <CategoryNav active={active} draft={draft} onSelect={setActive} />
               <div
                 className="srp-filter-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white"
                 style={{ WebkitOverflowScrolling: 'touch' }}

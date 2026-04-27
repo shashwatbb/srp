@@ -130,10 +130,10 @@ function mergeAppliedChipOrder(
   const rest = order.filter(
     (id) => nextIdSet.has(id) && !changedFront.includes(id),
   )
-  const out = [...changedFront, ...rest]
-  for (const c of nextChips) {
-    if (!out.includes(c.id)) out.push(c.id)
-  }
+  let out = [...changedFront, ...rest]
+  /** Brand-new chip ids (first apply) stay next to the shortcut pills, not at the strip tail. */
+  const missing = nextChips.map((c) => c.id).filter((id) => !out.includes(id))
+  out = [...missing, ...out]
   return out
 }
 
@@ -802,33 +802,6 @@ export function SrpPage({
               ) : null}
             </div>
 
-            {orderedAppliedFilterChips.map((chip) => (
-              <div
-                key={chip.id}
-                className={[
-                  `inline-flex max-w-[220px] shrink-0 items-center gap-0.5 border pl-2.5 pr-0.5 text-xs font-semibold leading-4 ${FILTER_PILL_RADIUS}`,
-                  FILTER_PILL_SHADOW,
-                  APPLIED_FILTER_CHIP_ACTIVE,
-                ].join(' ')}
-              >
-                <span className="min-w-0 flex-1 truncate py-2 pl-0.5">
-                  {chip.label}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAppliedChipOrder((o) => o.filter((id) => id !== chip.id))
-                    bumpListRefresh()
-                    setAppliedFilters((f) => chip.clear(f))
-                  }}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[15px] font-light leading-none text-[#5B22DE] active:bg-[#E8DEF9]"
-                  aria-label={`Remove ${chip.label}`}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-
             {FILTER_SHEET_SHORTCUTS.map((f) => {
               const shortcutOn = sheetShortcutActive(f.sheetTab, appliedFilters)
               return (
@@ -855,6 +828,33 @@ export function SrpPage({
                 </button>
               )
             })}
+
+            {orderedAppliedFilterChips.map((chip) => (
+              <div
+                key={chip.id}
+                className={[
+                  `inline-flex max-w-[220px] shrink-0 items-center gap-0.5 border pl-2.5 pr-0.5 text-xs font-semibold leading-4 ${FILTER_PILL_RADIUS}`,
+                  FILTER_PILL_SHADOW,
+                  APPLIED_FILTER_CHIP_ACTIVE,
+                ].join(' ')}
+              >
+                <span className="min-w-0 flex-1 truncate py-2 pl-0.5">
+                  {chip.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppliedChipOrder((o) => o.filter((id) => id !== chip.id))
+                    bumpListRefresh()
+                    setAppliedFilters((f) => chip.clear(f))
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[15px] font-light leading-none text-[#5B22DE] active:bg-[#E8DEF9]"
+                  aria-label={`Remove ${chip.label}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
 
           <div
