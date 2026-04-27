@@ -1140,8 +1140,6 @@ type CheckboxFilterItem = {
   id: string
   label: string
   hint?: string
-  /** Developer filter: show project count under the name */
-  projectCount?: number
 }
 
 const BHK_CHECKBOX_ITEMS: CheckboxFilterItem[] = FILTER_BHK_OPTIONS.map(
@@ -1183,7 +1181,6 @@ const DEVELOPER_CHECKBOX_ITEMS: CheckboxFilterItem[] =
   FILTER_DEVELOPER_OPTIONS.map((o) => ({
     id: o.id,
     label: o.id,
-    projectCount: o.projectCount,
   }))
 
 const FURNISHING_CHECKBOX_ITEMS: CheckboxFilterItem[] =
@@ -1246,11 +1243,7 @@ function CheckboxFilterColumn({
             role="checkbox"
             aria-checked={selected}
             aria-label={
-              typeof o.projectCount === 'number'
-                ? `${o.label}, ${o.projectCount} projects`
-                : o.hint
-                  ? `${o.label}. ${o.hint}`
-                  : o.label
+              o.hint ? `${o.label}. ${o.hint}` : o.label
             }
             className="flex w-full items-center gap-4 py-5 pl-0 pr-1 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
             onClick={() => {
@@ -1258,52 +1251,26 @@ function CheckboxFilterColumn({
               triggerPulse(o.id)
             }}
           >
-            {typeof o.projectCount === 'number' ? (
-              <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left">
-                <span
-                  className={[
-                    'min-w-0 truncate text-[15px] leading-relaxed transition-colors duration-300 ease-out',
-                    selected
-                      ? 'font-medium text-[#212121]'
-                      : 'font-normal text-[#454545]',
-                    pulsing ? 'text-[#7C5BD6]' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
-                  {o.label}
-                </span>
-                <span
-                  className="h-3.5 w-px shrink-0 self-center bg-[#D6D6D6]"
-                  aria-hidden
-                />
-                <span className="shrink-0 text-[13px] font-normal tabular-nums leading-relaxed text-[#6B6B6B]">
-                  {o.projectCount}{' '}
-                  {o.projectCount === 1 ? 'project' : 'projects'}
-                </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+              <span
+                className={[
+                  'text-[15px] leading-relaxed transition-colors duration-300 ease-out',
+                  selected
+                    ? 'font-medium text-[#212121]'
+                    : 'font-normal text-[#454545]',
+                  pulsing ? 'text-[#7C5BD6]' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {o.label}
               </span>
-            ) : (
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-                <span
-                  className={[
-                    'text-[15px] leading-relaxed transition-colors duration-300 ease-out',
-                    selected
-                      ? 'font-medium text-[#212121]'
-                      : 'font-normal text-[#454545]',
-                    pulsing ? 'text-[#7C5BD6]' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
-                  {o.label}
+              {o.hint ? (
+                <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
+                  {o.hint}
                 </span>
-                {o.hint ? (
-                  <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
-                    {o.hint}
-                  </span>
-                ) : null}
-              </span>
-            )}
+              ) : null}
+            </span>
             <span
               className={[
                 'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-[border-color,background-color] duration-200',
