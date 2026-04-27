@@ -202,7 +202,7 @@ export const FILTER_ADDED_ON_OPTIONS = [
 export type SrpAddedOnWindowId =
   (typeof FILTER_ADDED_ON_OPTIONS)[number]['id']
 
-/** Corner / boundary — short “Site” filter; ids match `FILTER_AMENITIES_LONG`. */
+/** Corner / boundary — “Layout” filter; ids match `FILTER_AMENITIES_LONG`. */
 export const FILTER_SITE_FEATURE_OPTIONS = [
   { id: 'corner_property' as const, label: 'Corner property' },
   {
@@ -251,6 +251,6 @@ export const FILTER_CATEGORY_LABELS: Record<FilterCategoryId, string> = {
   rera: 'RERA',
   launched: 'Launched',
   verified: 'Verified',
-  site: 'Site',
+  site: 'Layout',
   addedOn: 'Added on',
 }
