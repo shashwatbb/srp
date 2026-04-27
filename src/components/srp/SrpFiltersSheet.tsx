@@ -92,7 +92,177 @@ function PanelSectionLabel({ categoryId }: { categoryId: FilterCategoryId }) {
   )
 }
 
-/** Single-select row: radio ring + dot use same black / grey palette as checkbox column. */
+function ReraInfoGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 16v-5" />
+      <path d="M12 8h.01" />
+    </svg>
+  )
+}
+
+const RERA_INFO_SHEET_TRANSITION_MS = 320
+
+/** Stacks above `SrpFiltersSheet` (z-[110]); slides in/out from bottom. */
+function ReraInfoBottomSheet({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const [present, setPresent] = useState(open)
+  const [entered, setEntered] = useState(false)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const openRafRef = useRef<{ outer?: number; inner?: number }>({})
+
+  useEffect(() => {
+    if (open) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current)
+        closeTimerRef.current = null
+      }
+      const { current: r } = openRafRef
+      if (r.outer != null) cancelAnimationFrame(r.outer)
+      if (r.inner != null) cancelAnimationFrame(r.inner)
+      r.outer = r.inner = undefined
+
+      setPresent(true)
+      setEntered(false)
+      r.outer = requestAnimationFrame(() => {
+        r.inner = requestAnimationFrame(() => {
+          r.outer = r.inner = undefined
+          setEntered(true)
+        })
+      })
+      return () => {
+        if (r.outer != null) cancelAnimationFrame(r.outer)
+        if (r.inner != null) cancelAnimationFrame(r.inner)
+        r.outer = r.inner = undefined
+      }
+    }
+
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const dismissMs = reduced ? 0 : RERA_INFO_SHEET_TRANSITION_MS
+
+    setEntered(false)
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null
+      setPresent(false)
+    }, dismissMs)
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current)
+        closeTimerRef.current = null
+      }
+    }
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+      const { current: r } = openRafRef
+      if (r.outer != null) cancelAnimationFrame(r.outer)
+      if (r.inner != null) cancelAnimationFrame(r.inner)
+    }
+  }, [])
+
+  if (!present) return null
+
+  const reduceMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const transMs = reduceMotion ? 0 : RERA_INFO_SHEET_TRANSITION_MS
+
+  const overlayOpacity = entered ? 'opacity-100' : 'opacity-0'
+  const sheetTransform = entered ? 'translate3d(0,0,0)' : 'translate3d(0,100%,0)'
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex flex-col justify-end"
+      role="presentation"
+    >
+      <button
+        type="button"
+        className={[
+          'absolute inset-0 bg-black/40',
+          'motion-safe:transition-opacity motion-safe:ease-out',
+          overlayOpacity,
+        ].join(' ')}
+        style={{
+          transitionDuration: `${transMs}ms`,
+        }}
+        aria-label="Close"
+        onClick={onClose}
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rera-info-sheet-title"
+        className={[
+          'relative mx-auto mt-auto w-full max-w-[430px] rounded-t-[22px] bg-white shadow-[0_-8px_32px_rgba(0,0,0,0.14)]',
+          'motion-safe:transition-[transform] motion-safe:ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
+          'will-change-transform',
+        ].join(' ')}
+        style={{
+          transform: sheetTransform,
+          transitionDuration: `${transMs}ms`,
+          paddingBottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-2 mt-3 h-1 w-10 shrink-0 rounded-full bg-[#DDDDDD]" />
+
+        <h2
+          id="rera-info-sheet-title"
+          className="px-5 pb-2 pt-1 text-left text-[17px] font-semibold leading-snug text-[#212121]"
+        >
+          What is RERA?
+        </h2>
+
+        <div className="max-h-[min(40vh,280px)] overflow-y-auto px-5 pb-4 pt-1">
+          <p className="text-left text-[14px] font-normal leading-relaxed text-[#454545]">
+            <abbr title="Real Estate Regulation Act" className="no-underline">
+              RERA
+            </abbr>{' '}
+            is India&apos;s regulation for residential real estate. Builders register
+            projects with your state authority so buyers can verify approvals and reduce
+            risk before booking.
+          </p>
+        </div>
+
+        <div className="border-t border-[#EEF0F2] px-4 pb-2 pt-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-[14px] bg-[#5B22DE] py-3.5 text-[15px] font-semibold text-white active:bg-[#4C1BB8]"
+          >
+            Okay, got it
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** Single-select row: label left, radio ring + dot on the right. */
 function FilterOptionRow({
   selected,
   label,
@@ -111,17 +281,6 @@ function FilterOptionRow({
       aria-label={hint ? `${label}. ${hint}` : label}
       className="flex w-full items-center gap-3 bg-white py-4 pl-1 pr-2 text-left active:bg-white"
     >
-      <span
-        className={[
-          'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-[border-color] duration-200',
-          selected ? 'border-black' : 'border-[#C8C8C8]',
-        ].join(' ')}
-        aria-hidden
-      >
-        {selected ? (
-          <span className="h-[11px] w-[11px] rounded-full bg-[#0a0a0a]" />
-        ) : null}
-      </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span
           className={[
@@ -135,6 +294,17 @@ function FilterOptionRow({
           <span className="text-[11px] font-normal leading-snug text-[#9CA3AF]">
             {hint}
           </span>
+        ) : null}
+      </span>
+      <span
+        className={[
+          'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 bg-white transition-[border-color] duration-200',
+          selected ? 'border-black' : 'border-[#C8C8C8]',
+        ].join(' ')}
+        aria-hidden
+      >
+        {selected ? (
+          <span className="h-[11px] w-[11px] rounded-full bg-[#0a0a0a]" />
         ) : null}
       </span>
     </button>
@@ -1081,36 +1251,12 @@ function CheckboxFilterColumn({
                   ? `${o.label}. ${o.hint}`
                   : o.label
             }
-            className="flex w-full items-center gap-4 py-5 pl-0 pr-0 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
+            className="flex w-full items-center gap-4 py-5 pl-0 pr-1 text-left outline-none transition-colors duration-300 first:pt-4 last:pb-4"
             onClick={() => {
               onToggle(o.id)
               triggerPulse(o.id)
             }}
           >
-            <span
-              className={[
-                'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-[border-color,background-color] duration-200',
-                selected
-                  ? 'border-black bg-[#E8E8E8]'
-                  : 'border-[#C8C8C8] bg-white',
-              ].join(' ')}
-              aria-hidden
-            >
-              {selected ? (
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#0a0a0a"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              ) : null}
-            </span>
             {typeof o.projectCount === 'number' ? (
               <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-left">
                 <span
@@ -1157,6 +1303,30 @@ function CheckboxFilterColumn({
                 ) : null}
               </span>
             )}
+            <span
+              className={[
+                'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-[border-color,background-color] duration-200',
+                selected
+                  ? 'border-black bg-[#E8E8E8]'
+                  : 'border-[#C8C8C8] bg-white',
+              ].join(' ')}
+              aria-hidden
+            >
+              {selected ? (
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0a0a0a"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              ) : null}
+            </span>
           </button>
         )
       })}
@@ -1284,10 +1454,12 @@ function RightPanel({
   active,
   draft,
   setDraft,
+  onReraInfoClick,
 }: {
   active: FilterCategoryId
   draft: SrpAppliedFilters
   setDraft: Dispatch<SetStateAction<SrpAppliedFilters>>
+  onReraInfoClick?: () => void
 }) {
   const listWrap = 'mt-2 overflow-hidden rounded-xl bg-white'
 
@@ -1567,7 +1739,22 @@ function RightPanel({
   if (active === 'rera') {
     return (
       <div className="px-4 pb-24 pt-5">
-        <PanelSectionLabel categoryId="rera" />
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#878787]">
+            {FILTER_CATEGORY_LABELS.rera.toUpperCase()}
+          </p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReraInfoClick?.()
+            }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#878787] active:bg-black/[0.06]"
+            aria-label="What is RERA?"
+          >
+            <ReraInfoGlyph />
+          </button>
+        </div>
         <div className={listWrap}>
           <FilterOptionRow
             label="RERA-registered only"
@@ -1703,6 +1890,7 @@ export function SrpFiltersSheet({
   const [motionReady, setMotionReady] = useState(false)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const openRafRef = useRef<{ a?: number; b?: number; c?: number }>({})
+  const [reraInfoOpen, setReraInfoOpen] = useState(false)
   const bodyBeforeSheetRef = useRef<{ overflow: string; paddingRight: string }>({
     overflow: '',
     paddingRight: '',
@@ -1774,13 +1962,23 @@ export function SrpFiltersSheet({
   useEffect(() => {
     if (!present) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeAnimated()
+      if (e.key !== 'Escape') return
+      if (reraInfoOpen) {
+        e.preventDefault()
+        setReraInfoOpen(false)
+        return
+      }
+      closeAnimated()
     }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
     }
-  }, [present, closeAnimated])
+  }, [present, closeAnimated, reraInfoOpen])
+
+  useEffect(() => {
+    if (!open) setReraInfoOpen(false)
+  }, [open])
 
   useEffect(() => {
     if (!present) return
@@ -1835,13 +2033,19 @@ export function SrpFiltersSheet({
   }
 
   return createPortal(
-    <div
-      className={[
-        'fixed inset-0 z-[110]',
-        closing ? 'pointer-events-none' : '',
-      ].join(' ')}
-      role="presentation"
-    >
+    <>
+      <ReraInfoBottomSheet
+        open={reraInfoOpen}
+        onClose={() => setReraInfoOpen(false)}
+      />
+
+      <div
+        className={[
+          'fixed inset-0 z-[110]',
+          closing ? 'pointer-events-none' : '',
+        ].join(' ')}
+        role="presentation"
+      >
       <button
         type="button"
         className={[
@@ -1918,7 +2122,12 @@ export function SrpFiltersSheet({
                 className="srp-filter-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-white"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
-                <RightPanel active={active} draft={draft} setDraft={setDraft} />
+                <RightPanel
+                  active={active}
+                  draft={draft}
+                  setDraft={setDraft}
+                  onReraInfoClick={() => setReraInfoOpen(true)}
+                />
               </div>
             </div>
 
@@ -1950,7 +2159,8 @@ export function SrpFiltersSheet({
           </div>
         </div>
       </div>
-    </div>,
+    </div>
+    </>,
     document.body,
   )
 }
